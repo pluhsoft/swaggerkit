@@ -17,13 +17,13 @@ import (
 // behavior cannot diverge. With a nil verify function the scheme is only
 // documented and a middleware must enforce it.
 type SecurityScheme struct {
-	Type             string // "http", "apiKey" or "openIdConnect"
-	Scheme           string // "bearer" or "basic" for Type "http"
-	BearerFormat     string // e.g. "JWT"
-	In               string // "header", "query" or "cookie" for Type "apiKey"
-	Name             string // header, query or cookie name for Type "apiKey"
-	OpenIDConnectURL string
-	Description      string
+	Type             string `json:"type"` // "http", "apiKey" or "openIdConnect"
+	Description      string `json:"description,omitempty"`
+	Scheme           string `json:"scheme,omitempty"`       // "bearer" or "basic" for Type "http"
+	BearerFormat     string `json:"bearerFormat,omitempty"` // e.g. "JWT"
+	In               string `json:"in,omitempty"`           // "header", "query" or "cookie" for Type "apiKey"
+	Name             string `json:"name,omitempty"`         // header, query or cookie name for Type "apiKey"
+	OpenIDConnectURL string `json:"openIdConnectUrl,omitempty"`
 
 	extract func(r *http.Request) (credential, bool)
 	verify  func(ctx context.Context, c credential) (context.Context, error)
@@ -179,24 +179,4 @@ func (a *API) challenge(names []string) string {
 		}
 	}
 	return ""
-}
-
-func (s SecurityScheme) document() orderedMap {
-	m := orderedMap{{"type", s.Type}}
-	if s.Description != "" {
-		m.set("description", s.Description)
-	}
-	switch s.Type {
-	case "http":
-		m.set("scheme", s.Scheme)
-		if s.BearerFormat != "" {
-			m.set("bearerFormat", s.BearerFormat)
-		}
-	case "apiKey":
-		m.set("in", s.In)
-		m.set("name", s.Name)
-	case "openIdConnect":
-		m.set("openIdConnectUrl", s.OpenIDConnectURL)
-	}
-	return m
 }

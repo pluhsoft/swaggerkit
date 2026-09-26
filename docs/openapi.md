@@ -5,12 +5,7 @@ nav_order: 4
 
 # OpenAPI
 
-The document is built from registered routes and their Go types.
-
-| Version          | Constant                | Use                                   |
-| ---------------- | ----------------------- | ------------------------------------- |
-| 3.1 (default)    | `swaggerkit.OpenAPI31`  | current tools, JSON Schema 2020-12    |
-| 3.0              | `swaggerkit.OpenAPI30`  | tools without 3.1 support             |
+The OpenAPI 3.1 document is built from registered routes and their Go types.
 
 ## Serving
 
@@ -22,9 +17,8 @@ api := swaggerkit.New(info, swaggerkit.WithDocs("/docs"))
 | ------------------------- | ---------------- |
 | `/docs`                   | Swagger UI       |
 | `/docs/openapi.json`      | OpenAPI 3.1      |
-| `/docs/openapi-3.0.json`  | OpenAPI 3.0      |
 
-Swagger UI loads from jsDelivr with a pinned version and Subresource Integrity. Without internet access, or to serve the document elsewhere, mount `api.OpenAPIHandler(swaggerkit.OpenAPI31)` and your own UI.
+Swagger UI loads from jsDelivr with a pinned version and Subresource Integrity. Without internet access, or to serve the document elsewhere, mount `api.OpenAPIHandler()` and your own UI.
 
 Docs are off unless `WithDocs` is set: decide whether production exposes them.
 
@@ -37,7 +31,7 @@ The document needs no running server: build the API and write it.
 if *specFile != "" {
 	f, _ := os.Create(*specFile)
 	defer f.Close()
-	api.WriteOpenAPI(f, swaggerkit.OpenAPI31)
+	api.WriteOpenAPI(f)
 	return
 }
 ```
@@ -52,7 +46,7 @@ Commit the file and keep it current with a golden test. CI then fails on unrevie
 var update = flag.Bool("update", false, "rewrite openapi.json")
 
 func TestOpenAPI(t *testing.T) {
-	doc, _ := NewAPI().OpenAPI(swaggerkit.OpenAPI31)
+	doc, _ := NewAPI().OpenAPI()
 	if *update {
 		os.WriteFile("openapi.json", doc, 0o644)
 	}

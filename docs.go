@@ -61,6 +61,5 @@ func (a *API) registerDocs() {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		_, _ = w.Write(page.Bytes())
 	})
-	a.mux.Handle("GET "+base+"/openapi.json", a.OpenAPIHandler(OpenAPI31))
-	a.mux.Handle("GET "+base+"/openapi-3.0.json", a.OpenAPIHandler(OpenAPI30))
+	a.mux.Handle("GET "+base+"/openapi.json", a.OpenAPIHandler())
 }

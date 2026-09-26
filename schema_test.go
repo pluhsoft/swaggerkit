@@ -10,22 +10,22 @@ import (
 )
 
 // docJSON renders a schema and its components for comparison.
-func docJSON(t *testing.T, g *schemaGen, s *Schema, v OpenAPIVersion) string {
+func docJSON(t *testing.T, s *Schema) string {
 	t.Helper()
-	b, err := marshalJSON(s.document(v))
+	b, err := marshalJSON(s)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return string(b)
 }
 
-func componentJSON(t *testing.T, g *schemaGen, name string, v OpenAPIVersion) string {
+func componentJSON(t *testing.T, g *schemaGen, name string) string {
 	t.Helper()
 	c, ok := g.components[name]
 	if !ok {
 		t.Fatalf("no component %s; have %v", name, g.componentsSorted())
 	}
-	return docJSON(t, g, c, v)
+	return docJSON(t, c)
 }
 
 func TestSchemaOfBasicTypes(t *testing.T) {
@@ -60,7 +60,7 @@ func TestSchemaOfBasicTypes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		g := newSchemaGen()
-		got := docJSON(t, g, g.schemaOf(reflect.TypeOf(tt.value), "test"), OpenAPI31)
+		got := docJSON(t, g.schemaOf(reflect.TypeOf(tt.value), "test"))
 		if got != tt.want {
 			t.Errorf("%T:\n got %s\nwant %s", tt.value, got, tt.want)
 		}
@@ -99,10 +99,10 @@ func TestSchemaJSONTags(t *testing.T) {
 	if s.Ref != "tagged" {
 		t.Fatalf("ref = %q", s.Ref)
 	}
-	want := `{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"created":{"type":"string"},` +
-		`"name":{"type":"string"},"count":{"type":"string"},"optional":{"type":"string"},` +
-		`"nullable":{"type":["string","null"]},"Plain":{"type":"boolean"}},"required":["id","name","count","Plain"]}`
-	if got := componentJSON(t, g, "tagged", OpenAPI31); got != want {
+	want := `{"type":"object","properties":{"Plain":{"type":"boolean"},"count":{"type":"string"},"created":{"type":"string"},` +
+		`"id":{"type":"integer","format":"int64"},"name":{"type":"string"},"nullable":{"type":["string","null"]},` +
+		`"optional":{"type":"string"}},"required":["id","name","count","Plain"]}`
+	if got := componentJSON(t, g, "tagged"); got != want {
 		t.Errorf("\n got %s\nwant %s", got, want)
 	}
 	_ = tagged{}.private
@@ -143,9 +143,9 @@ type node struct {
 func TestSchemaRecursiveType(t *testing.T) {
 	g := newSchemaGen()
 	g.schemaOf(reflect.TypeFor[node](), "test")
-	want := `{"type":"object","properties":{"name":{"type":"string"},"children":{"type":"array","items":{"$ref":"#/components/schemas/node"}},` +
-		`"parent":{"$ref":"#/components/schemas/node"}},"required":["name"]}`
-	if got := componentJSON(t, g, "node", OpenAPI31); got != want {
+	want := `{"type":"object","properties":{"children":{"type":"array","items":{"$ref":"#/components/schemas/node"}},` +
+		`"name":{"type":"string"},"parent":{"$ref":"#/components/schemas/node"}},"required":["name"]}`
+	if got := componentJSON(t, g, "node"); got != want {
 		t.Errorf("\n got %s\nwant %s", got, want)
 	}
 }
@@ -203,7 +203,7 @@ func TestSchemaEnumsAndProviders(t *testing.T) {
 		Maybe  *color      `json:"maybe"`
 		Tagged interface{} `json:"tagged"`
 	}](), "test")
-	got := docJSON(t, g, s, OpenAPI31)
+	got := docJSON(t, s)
 	for _, want := range []string{
 		`"color":{"$ref":"#/components/schemas/color"}`,
 		`"colors":{"type":"array","items":{"$ref":"#/components/schemas/color"}}`,
@@ -214,38 +214,17 @@ func TestSchemaEnumsAndProviders(t *testing.T) {
 			t.Errorf("schema %s\ndoes not contain %s", got, want)
 		}
 	}
-	if got := componentJSON(t, g, "color", OpenAPI31); got != `{"type":"string","enum":["red","green"]}` {
+	if got := componentJSON(t, g, "color"); got != `{"type":"string","enum":["red","green"]}` {
 		t.Errorf("color = %s", got)
 	}
-	if got := componentJSON(t, g, "level", OpenAPI31); got != `{"type":"integer","enum":[1,2,3]}` {
+	if got := componentJSON(t, g, "level"); got != `{"type":"integer","enum":[1,2,3]}` {
 		t.Errorf("level = %s", got)
 	}
-	if got := componentJSON(t, g, "point", OpenAPI31); got != `{"type":"string","pattern":"^\\d+,\\d+$","description":"x,y"}` {
+	if got := componentJSON(t, g, "point"); got != `{"type":"string","description":"x,y","pattern":"^\\d+,\\d+$"}` {
 		t.Errorf("point = %s", got)
 	}
 	if len(g.issues) != 2 {
 		t.Errorf("want 2 untyped-value issues, got %v", g.issues)
-	}
-}
-
-func TestSchemaOpenAPI30(t *testing.T) {
-	g := newSchemaGen()
-	s := g.schemaOf(reflect.TypeFor[struct {
-		Name  *string `json:"name" doc:"Name" example:"Linden"`
-		Count int     `json:"count" validate:"gt=0,lt=10"`
-		Node  node    `json:"node" doc:"A node"`
-		Maybe *node   `json:"maybe"`
-	}](), "test")
-	got := docJSON(t, g, s, OpenAPI30)
-	for _, want := range []string{
-		`"name":{"type":"string","nullable":true,"description":"Name","example":"Linden"}`,
-		`"count":{"type":"integer","format":"int64","minimum":0,"exclusiveMinimum":true,"maximum":10,"exclusiveMaximum":true}`,
-		`"node":{"allOf":[{"$ref":"#/components/schemas/node"}],"description":"A node"}`,
-		`"maybe":{"allOf":[{"$ref":"#/components/schemas/node"}],"nullable":true}`,
-	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("schema %s\ndoes not contain %s", got, want)
-		}
 	}
 }
 
@@ -259,14 +238,14 @@ func TestSchemaTags(t *testing.T) {
 		Tags   []string          `json:"tags" validate:"len=2,unique,dive,uuid"`
 		Labels map[string]string `json:"labels" validate:"max=3,dive,max=10"`
 	}](), "test")
-	got := docJSON(t, g, s, OpenAPI31)
+	got := docJSON(t, s)
 	want := `{"type":"object","properties":{` +
-		`"name":{"type":"string","minLength":1,"maxLength":64,"pattern":"^[a-z]+$","deprecated":true},` +
 		`"email":{"type":"string","format":"email"},` +
-		`"size":{"type":"integer","format":"int64","multipleOf":1,"minimum":1,"maximum":5,"default":3},` +
 		`"kind":{"type":"string","enum":["a","b"],"default":"a"},` +
-		`"tags":{"type":"array","items":{"type":"string","format":"uuid"},"minItems":2,"maxItems":2,"uniqueItems":true},` +
-		`"labels":{"type":"object","additionalProperties":{"type":"string","maxLength":10},"maxProperties":3}},` +
+		`"labels":{"type":"object","additionalProperties":{"type":"string","maxLength":10},"maxProperties":3},` +
+		`"name":{"type":"string","deprecated":true,"minLength":1,"maxLength":64,"pattern":"^[a-z]+$"},` +
+		`"size":{"type":"integer","format":"int64","default":3,"minimum":1,"maximum":5,"multipleOf":1},` +
+		`"tags":{"type":"array","items":{"type":"string","format":"uuid"},"minItems":2,"maxItems":2,"uniqueItems":true}},` +
 		`"required":["name","tags","labels"]}`
 	if got != want {
 		t.Errorf("\n got %s\nwant %s", got, want)

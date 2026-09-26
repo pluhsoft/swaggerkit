@@ -73,7 +73,7 @@ func ExampleAPI_WriteOpenAPI() {
 		panic(err)
 	}
 	defer os.Remove(f.Name())
-	if err := api.WriteOpenAPI(f, swaggerkit.OpenAPI31); err != nil {
+	if err := api.WriteOpenAPI(f); err != nil {
 		panic(err)
 	}
 	fmt.Println(f.Close() == nil)

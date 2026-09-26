@@ -107,11 +107,9 @@ func problemSchema() *Schema {
 					"location": {Type: "string", Examples: []any{"body.name"}},
 					"message":  {Type: "string", Examples: []any{"is required"}},
 				},
-				PropertyOrder: []string{"location", "message"},
-				Required:      []string{"location", "message"},
+				Required: []string{"location", "message"},
 			}},
 		},
-		PropertyOrder: []string{"type", "title", "status", "detail", "errors"},
-		Required:      []string{"type", "title", "status"},
+		Required: []string{"type", "title", "status"},
 	}
 }

@@ -277,7 +277,7 @@ func TestBasePath(t *testing.T) {
 
 	root, _ := newTestAPI(WithDocs("/"))
 	expect(t, do(t, root, request{method: "GET", target: "/"}), 200, "swagger-ui")
-	expect(t, do(t, root, request{method: "GET", target: "/openapi-3.0.json"}), 200, `"openapi": "3.0.3"`)
+	expect(t, do(t, root, request{method: "GET", target: "/openapi.json"}), 200, `"openapi": "3.1.0"`)
 }
 
 func TestRegistrationPanics(t *testing.T) {

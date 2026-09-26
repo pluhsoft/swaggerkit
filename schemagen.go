@@ -220,7 +220,6 @@ func (g *schemaGen) fillObject(s *Schema, t reflect.Type, where string) {
 			fail(fieldWhere, "%v", err)
 		}
 		s.Properties[f.name] = fs
-		s.PropertyOrder = append(s.PropertyOrder, f.name)
 		// Like encoding/json output: a field without omitempty is always present,
 		// unless it is a pointer or has a default.
 		implied := !f.omitEmpty && f.typ.Kind() != reflect.Pointer && fs.Default == nil

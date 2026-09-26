@@ -9,7 +9,7 @@ The documentation cannot drift from the code.
 - `net/http` only, no dependencies
 - Path, query, header, cookie and JSON body binding
 - Validation from struct tags, RFC 9457 error responses
-- OpenAPI 3.1 and 3.0, built-in Swagger UI
+- OpenAPI 3.1, built-in Swagger UI
 - Security schemes that are documented and enforced
 - CORS, `log/slog` logging, any `net/http` middleware
 - `Lint` hints that improve API design

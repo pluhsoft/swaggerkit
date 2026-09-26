@@ -19,7 +19,7 @@ swaggerkit is a single Go package: typed `net/http` handlers, validation and Ope
 | `route.go`            | `Handle`/`Get`/…, route options, naming                   |
 | `bind.go`             | input analysis, parameter and body binding                |
 | `handler.go`          | request pipeline, outputs, context helpers                |
-| `schema.go`           | `Schema`, rendering for OpenAPI 3.0/3.1                   |
+| `schema.go`           | `Schema` and its JSON form                                |
 | `schemagen.go`        | Go type → schema, components, enums                       |
 | `fields.go`           | encoding/json field rules                                 |
 | `tags.go`             | `validate`, `doc`, `example`, `default`, `pattern` tags   |
@@ -28,7 +28,7 @@ swaggerkit is a single Go package: typed `net/http` handlers, validation and Ope
 | `errors.go`           | `Error`, problem details                                  |
 | `security.go`         | security schemes, authentication                          |
 | `middleware.go`       | `CORS`, `RequestLogger`                                   |
-| `openapi.go`, `docs.go` | document, Swagger UI                                    |
+| `openapi.go`, `docs.go` | OpenAPI 3.1 document types, Swagger UI                  |
 | `lint.go`             | `API.Lint`                                                |
 | `examples/apiary`     | example API, golden `openapi.json`                        |
 | `internal/release`    | release tool used by CI                                   |

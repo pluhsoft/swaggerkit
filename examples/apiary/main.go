@@ -20,7 +20,6 @@ import (
 func main() {
 	addr := flag.String("addr", ":8080", "listen address")
 	specFile := flag.String("openapi", "", "write the OpenAPI document to `file` and exit")
-	specVersion := flag.String("openapi-version", "3.1", "OpenAPI version: 3.1 or 3.0")
 	lint := flag.Bool("lint", false, "print API design hints and exit")
 	flag.Parse()
 
@@ -33,7 +32,7 @@ func main() {
 
 	switch {
 	case *specFile != "":
-		if err := writeSpec(api, *specFile, *specVersion); err != nil {
+		if err := writeSpec(api, *specFile); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
@@ -63,12 +62,8 @@ func main() {
 	}
 }
 
-func writeSpec(api *swaggerkit.API, path, version string) error {
-	v := swaggerkit.OpenAPI31
-	if version == "3.0" {
-		v = swaggerkit.OpenAPI30
-	}
-	doc, err := api.OpenAPI(v)
+func writeSpec(api *swaggerkit.API, path string) error {
+	doc, err := api.OpenAPI()
 	if err != nil {
 		return err
 	}

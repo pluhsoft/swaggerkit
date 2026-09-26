@@ -25,7 +25,7 @@ func newTestAPI() *swaggerkit.API {
 //
 //	go test ./examples/apiary -run TestOpenAPI -update
 func TestOpenAPI(t *testing.T) {
-	doc, err := newTestAPI().OpenAPI(swaggerkit.OpenAPI31)
+	doc, err := newTestAPI().OpenAPI()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestAPI(t *testing.T) {
 		{method: "DELETE", path: "/api/v1/hives/3", token: "beekeeper", wantStatus: 204},
 		{method: "GET", path: "/api/v1/stats", wantStatus: 200, wantBody: `"hives":3`},
 		{method: "GET", path: "/api/v1/docs", wantStatus: 200, wantBody: "swagger-ui"},
-		{method: "GET", path: "/api/v1/docs/openapi-3.0.json", wantStatus: 200, wantBody: `"openapi": "3.0.3"`},
+		{method: "GET", path: "/api/v1/docs/openapi.json", wantStatus: 200, wantBody: `"openapi": "3.1.0"`},
 	}
 	for _, c := range calls {
 		t.Run(c.method+" "+c.path, func(t *testing.T) {

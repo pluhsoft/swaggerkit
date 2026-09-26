@@ -26,8 +26,8 @@
 // tag and documented with the doc and example tags. Errors are sent as RFC 9457
 // problem details.
 //
-// The API serves Swagger UI and the OpenAPI 3.1 and 3.0 documents
-// ([WithDocs]), writes them to files ([API.WriteOpenAPI]) and reports design
+// The API serves Swagger UI and the OpenAPI 3.1 document ([WithDocs]),
+// writes the document to a file ([API.WriteOpenAPI]) and reports design
 // problems ([API.Lint]).
 //
 // Guides: https://pluhsoft.github.io/swaggerkit/

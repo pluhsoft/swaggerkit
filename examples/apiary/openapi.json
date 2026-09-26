@@ -44,9 +44,9 @@
             "schema": {
               "type": "integer",
               "format": "int64",
+              "default": 20,
               "minimum": 1,
-              "maximum": 100,
-              "default": 20
+              "maximum": 100
             }
           },
           {
@@ -56,8 +56,8 @@
             "schema": {
               "type": "integer",
               "format": "int64",
-              "minimum": 0,
-              "default": 0
+              "default": 0,
+              "minimum": 0
             }
           },
           {
@@ -180,71 +180,6 @@
       }
     },
     "/hives/{hiveId}": {
-      "get": {
-        "tags": [
-          "hives"
-        ],
-        "summary": "Get hive",
-        "operationId": "getHive",
-        "parameters": [
-          {
-            "name": "hiveId",
-            "in": "path",
-            "description": "Hive ID",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 1,
-              "examples": [
-                1
-              ]
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Hive"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable Entity",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          }
-        }
-      },
       "delete": {
         "tags": [
           "hives"
@@ -260,10 +195,10 @@
             "schema": {
               "type": "integer",
               "format": "int64",
-              "minimum": 1,
               "examples": [
                 1
-              ]
+              ],
+              "minimum": 1
             }
           }
         ],
@@ -318,6 +253,71 @@
           }
         ]
       },
+      "get": {
+        "tags": [
+          "hives"
+        ],
+        "summary": "Get hive",
+        "operationId": "getHive",
+        "parameters": [
+          {
+            "name": "hiveId",
+            "in": "path",
+            "description": "Hive ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "examples": [
+                1
+              ],
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Hive"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "tags": [
           "hives"
@@ -333,10 +333,10 @@
             "schema": {
               "type": "integer",
               "format": "int64",
-              "minimum": 1,
               "examples": [
                 1
-              ]
+              ],
+              "minimum": 1
             }
           }
         ],
@@ -425,10 +425,10 @@
             "schema": {
               "type": "integer",
               "format": "int64",
-              "minimum": 1,
               "examples": [
                 1
-              ]
+              ],
+              "minimum": 1
             }
           }
         ],
@@ -442,12 +442,12 @@
                   "count": {
                     "type": "integer",
                     "format": "int64",
-                    "minimum": 1,
-                    "maximum": 50000,
                     "description": "Number of bees to add",
                     "examples": [
                       5000
-                    ]
+                    ],
+                    "minimum": 1,
+                    "maximum": 50000
                   }
                 },
                 "required": [
@@ -533,10 +533,10 @@
             "schema": {
               "type": "integer",
               "format": "int64",
-              "minimum": 1,
               "examples": [
                 1
-              ]
+              ],
+              "minimum": 1
             }
           }
         ],
@@ -550,12 +550,12 @@
                   "kg": {
                     "type": "number",
                     "format": "double",
-                    "exclusiveMinimum": 0,
-                    "maximum": 100,
                     "description": "Honey to take, kg",
                     "examples": [
                       4.5
-                    ]
+                    ],
+                    "maximum": 100,
+                    "exclusiveMinimum": 0
                   }
                 },
                 "required": [
@@ -650,10 +650,10 @@
             "schema": {
               "type": "integer",
               "format": "int64",
-              "minimum": 1,
               "examples": [
                 1
-              ]
+              ],
+              "minimum": 1
             }
           }
         ],
@@ -739,6 +739,18 @@
       "Harvest": {
         "type": "object",
         "properties": {
+          "beekeeper": {
+            "type": "string",
+            "description": "Who harvested",
+            "examples": [
+              "beekeeper"
+            ]
+          },
+          "harvestedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the honey was taken"
+          },
           "hiveId": {
             "type": "integer",
             "format": "int64",
@@ -762,18 +774,6 @@
             "examples": [
               8
             ]
-          },
-          "harvestedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the honey was taken"
-          },
-          "beekeeper": {
-            "type": "string",
-            "description": "Who harvested",
-            "examples": [
-              "beekeeper"
-            ]
           }
         },
         "required": [
@@ -787,25 +787,6 @@
       "Hive": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Hive ID",
-            "examples": [
-              1
-            ]
-          },
-          "name": {
-            "type": "string",
-            "description": "Name painted on the hive",
-            "examples": [
-              "Linden"
-            ]
-          },
-          "status": {
-            "$ref": "#/components/schemas/HiveStatus",
-            "description": "Colony state"
-          },
           "bees": {
             "type": "integer",
             "format": "int64",
@@ -813,6 +794,11 @@
             "examples": [
               42000
             ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the hive was set up"
           },
           "honeyKg": {
             "type": "number",
@@ -822,31 +808,45 @@
               12.5
             ]
           },
-          "queen": {
-            "$ref": "#/components/schemas/Queen",
-            "description": "Queen of the colony, if there is one"
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Hive ID",
+            "examples": [
+              1
+            ]
           },
           "location": {
             "$ref": "#/components/schemas/Location",
             "description": "Where the hive stands"
           },
+          "name": {
+            "type": "string",
+            "description": "Name painted on the hive",
+            "examples": [
+              "Linden"
+            ]
+          },
+          "queen": {
+            "$ref": "#/components/schemas/Queen",
+            "description": "Queen of the colony, if there is one"
+          },
+          "status": {
+            "$ref": "#/components/schemas/HiveStatus",
+            "description": "Colony state"
+          },
           "tags": {
             "type": "array",
-            "items": {
-              "type": "string"
-            },
             "description": "Free-form labels",
             "examples": [
               [
                 "meadow",
                 "calm"
               ]
-            ]
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the hive was set up"
+            ],
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
@@ -874,17 +874,17 @@
         "properties": {
           "name": {
             "type": "string",
+            "description": "New name",
             "minLength": 1,
-            "maxLength": 64,
-            "description": "New name"
-          },
-          "status": {
-            "$ref": "#/components/schemas/HiveStatus",
-            "description": "New colony state"
+            "maxLength": 64
           },
           "queen": {
             "$ref": "#/components/schemas/Queen",
             "description": "New queen"
+          },
+          "status": {
+            "$ref": "#/components/schemas/HiveStatus",
+            "description": "New colony state"
           }
         }
       },
@@ -894,22 +894,22 @@
           "lat": {
             "type": "number",
             "format": "double",
-            "minimum": -90,
-            "maximum": 90,
             "description": "Latitude",
             "examples": [
               55.75
-            ]
+            ],
+            "minimum": -90,
+            "maximum": 90
           },
           "lon": {
             "type": "number",
             "format": "double",
-            "minimum": -180,
-            "maximum": 180,
             "description": "Longitude",
             "examples": [
               37.62
-            ]
+            ],
+            "minimum": -180,
+            "maximum": 180
           }
         },
         "required": [
@@ -920,34 +920,34 @@
       "NewHive": {
         "type": "object",
         "properties": {
+          "location": {
+            "$ref": "#/components/schemas/Location",
+            "description": "Where the hive stands"
+          },
           "name": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 64,
             "description": "Name painted on the hive",
             "examples": [
               "Linden"
-            ]
+            ],
+            "minLength": 1,
+            "maxLength": 64
           },
           "status": {
             "$ref": "#/components/schemas/HiveStatus",
             "description": "Initial colony state",
             "default": "empty"
           },
-          "location": {
-            "$ref": "#/components/schemas/Location",
-            "description": "Where the hive stands"
-          },
           "tags": {
             "type": "array",
+            "description": "Free-form labels",
             "items": {
               "type": "string",
               "minLength": 1,
               "maxLength": 32
             },
             "maxItems": 10,
-            "uniqueItems": true,
-            "description": "Free-form labels"
+            "uniqueItems": true
           }
         },
         "required": [
@@ -960,18 +960,10 @@
         "properties": {
           "items": {
             "type": "array",
+            "description": "Items on this page",
             "items": {
               "$ref": "#/components/schemas/Hive"
-            },
-            "description": "Items on this page"
-          },
-          "total": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Number of items in all pages",
-            "examples": [
-              3
-            ]
+            }
           },
           "limit": {
             "type": "integer",
@@ -988,6 +980,14 @@
             "examples": [
               0
             ]
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of items in all pages",
+            "examples": [
+              3
+            ]
           }
         },
         "required": [
@@ -997,92 +997,10 @@
           "offset"
         ]
       },
-      "Queen": {
-        "type": "object",
-        "properties": {
-          "breed": {
-            "type": "string",
-            "enum": [
-              "carniolan",
-              "italian",
-              "buckfast"
-            ],
-            "description": "Bee breed",
-            "examples": [
-              "carniolan"
-            ]
-          },
-          "bornOn": {
-            "type": "string",
-            "format": "date",
-            "description": "Date the queen hatched",
-            "examples": [
-              "2026-05-14"
-            ]
-          }
-        },
-        "required": [
-          "breed",
-          "bornOn"
-        ]
-      },
-      "Stats": {
-        "type": "object",
-        "properties": {
-          "hives": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Number of hives",
-            "examples": [
-              3
-            ]
-          },
-          "bees": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Bees in all hives",
-            "examples": [
-              97000
-            ]
-          },
-          "honeyKg": {
-            "type": "number",
-            "format": "double",
-            "description": "Honey in all hives, kg",
-            "examples": [
-              31.5
-            ]
-          }
-        },
-        "required": [
-          "hives",
-          "bees",
-          "honeyKg"
-        ]
-      },
       "Problem": {
         "type": "object",
+        "description": "Problem details, RFC 9457.",
         "properties": {
-          "type": {
-            "type": "string",
-            "format": "uri-reference",
-            "examples": [
-              "about:blank"
-            ]
-          },
-          "title": {
-            "type": "string",
-            "examples": [
-              "Unprocessable Entity"
-            ]
-          },
-          "status": {
-            "type": "integer",
-            "format": "int32",
-            "examples": [
-              422
-            ]
-          },
           "detail": {
             "type": "string",
             "examples": [
@@ -1112,14 +1030,96 @@
                 "message"
               ]
             }
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "examples": [
+              422
+            ]
+          },
+          "title": {
+            "type": "string",
+            "examples": [
+              "Unprocessable Entity"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "format": "uri-reference",
+            "examples": [
+              "about:blank"
+            ]
           }
         },
         "required": [
           "type",
           "title",
           "status"
-        ],
-        "description": "Problem details, RFC 9457."
+        ]
+      },
+      "Queen": {
+        "type": "object",
+        "properties": {
+          "bornOn": {
+            "type": "string",
+            "format": "date",
+            "description": "Date the queen hatched",
+            "examples": [
+              "2026-05-14"
+            ]
+          },
+          "breed": {
+            "type": "string",
+            "enum": [
+              "carniolan",
+              "italian",
+              "buckfast"
+            ],
+            "description": "Bee breed",
+            "examples": [
+              "carniolan"
+            ]
+          }
+        },
+        "required": [
+          "breed",
+          "bornOn"
+        ]
+      },
+      "Stats": {
+        "type": "object",
+        "properties": {
+          "bees": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bees in all hives",
+            "examples": [
+              97000
+            ]
+          },
+          "hives": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of hives",
+            "examples": [
+              3
+            ]
+          },
+          "honeyKg": {
+            "type": "number",
+            "format": "double",
+            "description": "Honey in all hives, kg",
+            "examples": [
+              31.5
+            ]
+          }
+        },
+        "required": [
+          "hives",
+          "bees",
+          "honeyKg"
+        ]
       }
     },
     "securitySchemes": {

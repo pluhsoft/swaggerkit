@@ -61,7 +61,7 @@ func main() {
 ```
 
 - Swagger UI: `http://localhost:8080/docs`
-- OpenAPI 3.1: `/docs/openapi.json`, OpenAPI 3.0: `/docs/openapi-3.0.json`
+- OpenAPI 3.1: `/docs/openapi.json`
 
 ## What happens on a request
 

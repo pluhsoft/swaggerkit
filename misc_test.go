@@ -53,7 +53,7 @@ func TestSecuritySchemeDocuments(t *testing.T) {
 		{OpenIDConnectAuth("https://id.example", nil), `{"type":"openIdConnect","openIdConnectUrl":"https://id.example"}`},
 	}
 	for _, tt := range tests {
-		b, _ := marshalJSON(tt.scheme.document())
+		b, _ := marshalJSON(tt.scheme)
 		if string(b) != tt.want {
 			t.Errorf("got %s, want %s", b, tt.want)
 		}
@@ -166,11 +166,6 @@ func TestJSONHelpers(t *testing.T) {
 	}
 	if (&Error{Status: 499}).title() != "Error" {
 		t.Error("title fallback")
-	}
-	m := orderedMap{{"a", 1}}
-	m.set("a", 2)
-	if b, _ := marshalJSON(m); string(b) != `{"a":2}` {
-		t.Errorf("orderedMap = %s", b)
 	}
 }
 

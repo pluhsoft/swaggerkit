@@ -9,32 +9,32 @@ import (
 
 // Info describes the API in the OpenAPI document.
 type Info struct {
-	Title          string
-	Version        string
-	Description    string
-	TermsOfService string
-	Contact        *Contact
-	License        *License
+	Title          string   `json:"title"`
+	Description    string   `json:"description,omitempty"`
+	TermsOfService string   `json:"termsOfService,omitempty"`
+	Contact        *Contact `json:"contact,omitempty"`
+	License        *License `json:"license,omitempty"`
+	Version        string   `json:"version"`
 }
 
 // Contact is the API contact in the OpenAPI document.
 type Contact struct {
-	Name  string
-	URL   string
-	Email string
+	Name  string `json:"name,omitempty"`
+	URL   string `json:"url,omitempty"`
+	Email string `json:"email,omitempty"`
 }
 
 // License is the API license in the OpenAPI document.
 type License struct {
-	Name       string
-	Identifier string // SPDX identifier, e.g. "MIT"; OpenAPI 3.1 only
-	URL        string
+	Name       string `json:"name"`
+	Identifier string `json:"identifier,omitempty"` // SPDX identifier, e.g. "MIT"; use it or URL
+	URL        string `json:"url,omitempty"`
 }
 
 // Server is an API server in the OpenAPI document.
 type Server struct {
-	URL         string
-	Description string
+	URL         string `json:"url"`
+	Description string `json:"description,omitempty"`
 }
 
 // Middleware wraps an http.Handler. Standard net/http middlewares fit as is.
@@ -52,7 +52,7 @@ type API struct {
 	logger          *slog.Logger
 	maxBodyBytes    int64
 	strict          bool
-	tags            []tagInfo
+	tags            []docTag
 	securitySchemes map[string]SecurityScheme
 	schemeOrder     []string
 	docsPath        string
@@ -63,12 +63,8 @@ type API struct {
 	middlewares []Middleware
 	routes      []*route
 	gen         *schemaGen
-	specCache   map[OpenAPIVersion][]byte
+	spec        []byte // cached OpenAPI document
 	root        *Group
-}
-
-type tagInfo struct {
-	name, description string
 }
 
 // Option configures an [API].
@@ -107,7 +103,7 @@ func WithUnknownFields() Option {
 // WithTag adds a description to a tag in the OpenAPI document.
 // Tags are listed in the order they are added.
 func WithTag(name, description string) Option {
-	return func(a *API) { a.tags = append(a.tags, tagInfo{name, description}) }
+	return func(a *API) { a.tags = append(a.tags, docTag{name, description}) }
 }
 
 // WithSecurityScheme registers a security scheme. Routes require it with
@@ -122,7 +118,7 @@ func WithSecurityScheme(name string, scheme SecurityScheme) Option {
 }
 
 // WithDocs serves Swagger UI at path and the OpenAPI document at
-// path+"/openapi.json" (3.1) and path+"/openapi-3.0.json" (3.0).
+// path+"/openapi.json".
 func WithDocs(path string) Option {
 	return func(a *API) { a.docsPath = "/" + strings.Trim(path, "/") }
 }
@@ -139,7 +135,6 @@ func New(info Info, opts ...Option) *API {
 		securitySchemes: map[string]SecurityScheme{},
 		mux:             http.NewServeMux(),
 		gen:             newSchemaGen(),
-		specCache:       map[OpenAPIVersion][]byte{},
 	}
 	for _, opt := range opts {
 		opt(a)

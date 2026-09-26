@@ -35,7 +35,7 @@ func TestOpenAPIDocument(t *testing.T) {
 		return nil, nil
 	}, Produces("image/png"))
 
-	raw, err := api.OpenAPI(OpenAPI31)
+	raw, err := api.OpenAPI()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,26 +93,18 @@ func TestOpenAPIDocument(t *testing.T) {
 		t.Errorf("tags = %v", tags)
 	}
 
-	v30, err := api.OpenAPI(OpenAPI30)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Contains(v30, []byte(`"openapi": "3.0.3"`)) || bytes.Contains(v30, []byte(`"identifier"`)) {
-		t.Error("3.0 document is wrong")
-	}
-
 	// New routes invalidate the cached document.
 	Get(api, "/late", func(ctx context.Context, _ struct{}) (string, error) { return "", nil })
 	var buf bytes.Buffer
-	if err := api.WriteOpenAPI(&buf, OpenAPI31); err != nil || !strings.Contains(buf.String(), `"/late"`) {
+	if err := api.WriteOpenAPI(&buf); err != nil || !strings.Contains(buf.String(), `"/late"`) {
 		t.Errorf("document was not rebuilt: %v", err)
 	}
 }
 
 func TestOpenAPIHandler(t *testing.T) {
 	api, _ := newTestAPI()
-	rec := do(t, api.OpenAPIHandler(OpenAPI30), request{method: "GET", target: "/"})
-	expect(t, rec, 200, `"openapi": "3.0.3"`, `"paths": {}`)
+	rec := do(t, api.OpenAPIHandler(), request{method: "GET", target: "/"})
+	expect(t, rec, 200, `"openapi": "3.1.0"`, `"paths": {}`)
 	if rec.Header().Get("Content-Type") != "application/json" {
 		t.Error("wrong content type")
 	}
