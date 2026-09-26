@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"reflect"
 	"runtime/debug"
+	"slices"
 	"time"
 )
 
@@ -57,6 +58,7 @@ type contextKey int
 const (
 	requestKey contextKey = iota
 	writerKey
+	statusKey
 )
 
 // Request returns the HTTP request of a handler context.
@@ -82,10 +84,20 @@ func (a *API) logError(ctx context.Context, msg string, attrs ...slog.Attr) {
 	}
 }
 
+// SetStatus selects the success status of the response. The status must be
+// the route's default or one documented with [Statuses]; otherwise the
+// request fails with 500, so the documentation stays true.
+func SetStatus(ctx context.Context, code int) {
+	if p, ok := ctx.Value(statusKey).(*int); ok {
+		*p = code
+	}
+}
+
 // serve runs a route: input binding, the handler and the response.
 func serve[In, Out any](a *API, rt *route, w http.ResponseWriter, r *http.Request, h HandlerFunc[In, Out]) {
 	ctx := context.WithValue(r.Context(), requestKey, r)
 	ctx = context.WithValue(ctx, writerKey, w)
+	ctx = context.WithValue(ctx, statusKey, new(int))
 	defer func() {
 		if rec := recover(); rec != nil {
 			if rec == http.ErrAbortHandler {
@@ -113,9 +125,18 @@ func serve[In, Out any](a *API, rt *route, w http.ResponseWriter, r *http.Reques
 }
 
 func (a *API) writeOutput(ctx context.Context, w http.ResponseWriter, r *http.Request, rt *route, out any) {
+	status := successStatus(rt)
+	if chosen := *ctx.Value(statusKey).(*int); chosen != 0 && chosen != status {
+		if !slices.Contains(rt.cfg.statuses, chosen) {
+			a.writeError(ctx, w, &Error{Status: http.StatusInternalServerError,
+				Err: fmt.Errorf("handler %s set status %d; document it with Statuses(%d)", rt.operationID, chosen, chosen)})
+			return
+		}
+		status = chosen
+	}
 	switch rt.output {
 	case outputNoContent:
-		w.WriteHeader(successStatus(rt))
+		w.WriteHeader(status)
 		return
 	case outputFile:
 		f, _ := out.(*File)
@@ -123,7 +144,7 @@ func (a *API) writeOutput(ctx context.Context, w http.ResponseWriter, r *http.Re
 			a.writeError(ctx, w, &Error{Status: http.StatusInternalServerError, Err: errors.New("handler returned a nil *File")})
 			return
 		}
-		writeFile(w, r, f, successStatus(rt))
+		writeFile(w, r, f, status)
 		return
 	}
 
@@ -144,7 +165,7 @@ func (a *API) writeOutput(ctx context.Context, w http.ResponseWriter, r *http.Re
 	h := w.Header()
 	h.Set("Content-Type", "application/json")
 	h.Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(successStatus(rt))
+	w.WriteHeader(status)
 	if r.Method != http.MethodHead {
 		_, _ = w.Write(append(body, '\n'))
 	}

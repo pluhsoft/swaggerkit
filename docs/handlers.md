@@ -51,6 +51,20 @@ type UpdateHiveInput struct {
 
 Use `struct{}` for handlers without input.
 
+A route with several success statuses documents them and picks one per request:
+
+```go
+swaggerkit.Put(api, "/hives/{hiveId}", PutHive, swaggerkit.Statuses(http.StatusCreated))
+
+func PutHive(ctx context.Context, in PutHiveInput) (Hive, error) {
+	hive, created := store.Put(in)
+	if created {
+		swaggerkit.SetStatus(ctx, http.StatusCreated) // must be listed in Statuses, otherwise 500
+	}
+	return hive, nil
+}
+```
+
 ## Output
 
 | Type                   | Response                                    |
@@ -99,7 +113,7 @@ Document the errors a handler returns: `swaggerkit.Errors(http.StatusNotFound, h
 | `Summary`, `Description`        | text in the documentation; summary defaults to the handler name: `ListHives` → "List hives" |
 | `OperationID`                   | defaults to `listHives`; must be unique  |
 | `Tags`                          | groups operations                        |
-| `Status`                        | success status                           |
+| `Status`, `Statuses`            | success status; more statuses for `SetStatus` |
 | `Errors`, `Produces`            | documented responses                     |
 | `Security`, `Public`            | documented [authentication](security)    |
 | `Middlewares`                   | [middlewares](middleware) for the route  |
