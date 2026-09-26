@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/subtle"
-	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -33,9 +32,7 @@ func requireBeekeeper(token string) swaggerkit.Middleware {
 			got, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 			if !ok || subtle.ConstantTimeCompare([]byte(got), []byte(token)) != 1 {
 				w.Header().Set("WWW-Authenticate", "Bearer")
-				w.Header().Set("Content-Type", "application/problem+json")
-				w.WriteHeader(http.StatusUnauthorized)
-				_, _ = io.WriteString(w, `{"type":"about:blank","title":"Unauthorized","status":401,"detail":"unknown token"}`)
+				swaggerkit.WriteError(w, swaggerkit.Unauthorized("unknown token"))
 				return
 			}
 			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), beekeeperKey{}, "beekeeper")))

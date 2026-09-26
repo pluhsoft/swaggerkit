@@ -218,6 +218,11 @@ func (a *API) operation(rt *route, problem string) *operation {
 		success.Content = map[string]mediaType{ct: {&Schema{Type: "string", Format: "binary"}}}
 	}
 	op.Responses[strconv.Itoa(status)] = success
+	for _, code := range rt.cfg.statuses {
+		extra := success
+		extra.Description = http.StatusText(code)
+		op.Responses[strconv.Itoa(code)] = extra
+	}
 
 	codes := slices.Clone(rt.cfg.errors)
 	if len(rt.cfg.security) > 0 {

@@ -22,7 +22,7 @@ Scope: validation and generation only. Authentication, CORS and access logs are 
 | `form.go`             | form fields and file uploads                              |
 | `handler.go`          | request pipeline, outputs, context helpers                |
 | `schema.go`           | `Schema` and its JSON form                                |
-| `schemagen.go`        | Go type → schema, components, enums                       |
+| `schemagen.go`        | Go type → schema, components, enums, `Doc()`              |
 | `fields.go`           | encoding/json field rules                                 |
 | `tags.go`             | `validate`, `doc`, `example`, `default`, `pattern` tags   |
 | `validate.go`         | JSON value validation                                     |
