@@ -6,6 +6,10 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Faster request validation: up to 29% less time and 44% fewer allocations; benchmarks in `bench_test.go` (#11).
+
 ### Added
 
 - Typed handlers on `net/http`: `Get`, `Post`, `Put`, `Patch`, `Delete`, `Handle`, groups and middlewares.

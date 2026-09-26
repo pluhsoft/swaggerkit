@@ -397,3 +397,19 @@ func TestNaming(t *testing.T) {
 		t.Errorf("splitWords = %v", got)
 	}
 }
+
+func TestScalarParams(t *testing.T) {
+	api, _ := newTestAPI()
+	type in struct {
+		Count *int      `query:"count"`
+		IDs   []uint16  `query:"id"`
+		Ratio float32   `query:"ratio"`
+		Flags []*bool   `query:"flag"`
+		Name  *string   `query:"name"`
+		When  time.Time `query:"when"`
+	}
+	Get(api, "/p", func(ctx context.Context, in in) (in, error) { return in, nil })
+	rec := do(t, api, request{method: "GET", target: "/p?count=3&id=1&id=255&ratio=0.5&flag=true&flag=0&name=bee&when=2026-09-26T10:00:00Z"})
+	expect(t, rec, 200, `"Count":3`, `"IDs":[1,255]`, `"Ratio":0.5`, `"Flags":[true,false]`, `"Name":"bee"`, `"When":"2026-09-26T10:00:00Z"`)
+	expect(t, do(t, api, request{method: "GET", target: "/p?id=65536"}), 422, `"location":"query.id[0]"`)
+}
