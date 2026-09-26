@@ -22,18 +22,19 @@ type HandlerFunc[In, Out any] func(ctx context.Context, in In) (Out, error)
 type RouteOption func(*routeConfig)
 
 type routeConfig struct {
-	summary     string
-	description string
-	operationID string
-	tags        []string
-	deprecated  bool
-	hidden      bool
-	status      int
-	security    []string
-	public      bool
-	middlewares []Middleware
-	errors      []int
-	produces    string
+	summary      string
+	description  string
+	operationID  string
+	tags         []string
+	deprecated   bool
+	hidden       bool
+	status       int
+	security     []string
+	public       bool
+	middlewares  []Middleware
+	errors       []int
+	produces     string
+	maxBodyBytes int64
 }
 
 // Summary sets the short summary of the operation.
@@ -85,6 +86,9 @@ func Middlewares(mw ...Middleware) RouteOption {
 func Errors(codes ...int) RouteOption {
 	return func(c *routeConfig) { c.errors = append(c.errors, codes...) }
 }
+
+// MaxBodyBytes overrides [WithMaxBodyBytes] for the route, e.g. for uploads.
+func MaxBodyBytes(n int64) RouteOption { return func(c *routeConfig) { c.maxBodyBytes = n } }
 
 // Produces sets the content type of a [File] response in the documentation,
 // e.g. "image/png". The default is "application/octet-stream".

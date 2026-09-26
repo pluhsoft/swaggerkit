@@ -8,6 +8,10 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Form fields and file uploads: `form` tag, `*multipart.FileHeader`, `MaxBodyBytes` route option (#4).
+
+### Added
+
 - Typed handlers on `net/http`: `Get`, `Post`, `Put`, `Patch`, `Delete`, `Handle`, groups and middlewares.
 - Path, query, header, cookie and JSON body binding with validation from `validate`, `pattern` and `default` tags.
 - RFC 9457 problem details for errors.

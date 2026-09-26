@@ -702,6 +702,179 @@
         }
       }
     },
+    "/hives/{hiveId}/photo": {
+      "get": {
+        "tags": [
+          "hives"
+        ],
+        "summary": "Get the photo of a hive",
+        "operationId": "getPhoto",
+        "parameters": [
+          {
+            "name": "hiveId",
+            "in": "path",
+            "description": "Hive ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "examples": [
+                1
+              ],
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "image/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "hives"
+        ],
+        "summary": "Upload a photo of a hive",
+        "operationId": "uploadPhoto",
+        "parameters": [
+          {
+            "name": "hiveId",
+            "in": "path",
+            "description": "Hive ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "examples": [
+                1
+              ],
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "caption": {
+                    "type": "string",
+                    "description": "Caption",
+                    "maxLength": 100
+                  },
+                  "photo": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "JPEG or PNG image, up to 2 MiB"
+                  }
+                },
+                "required": [
+                  "photo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoInfo"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "beekeeper": []
+          }
+        ]
+      }
+    },
     "/stats": {
       "get": {
         "tags": [
@@ -995,6 +1168,54 @@
           "total",
           "limit",
           "offset"
+        ]
+      },
+      "PhotoInfo": {
+        "type": "object",
+        "properties": {
+          "caption": {
+            "type": "string",
+            "description": "Caption",
+            "examples": [
+              "Spring inspection"
+            ]
+          },
+          "contentType": {
+            "type": "string",
+            "description": "image/jpeg or image/png",
+            "examples": [
+              "image/jpeg"
+            ]
+          },
+          "hiveId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Hive ID",
+            "examples": [
+              1
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "Original file name",
+            "examples": [
+              "linden.jpg"
+            ]
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Size in bytes",
+            "examples": [
+              48213
+            ]
+          }
+        },
+        "required": [
+          "hiveId",
+          "name",
+          "contentType",
+          "size"
         ]
       },
       "Problem": {

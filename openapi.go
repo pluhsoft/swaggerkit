@@ -196,6 +196,15 @@ func (a *API) operation(rt *route, problem string) *operation {
 		}
 	}
 
+	if form := rt.input.form; len(form) > 0 {
+		schema := formSchema(form)
+		body := &requestBody{Required: len(schema.Required) > 0, Content: map[string]mediaType{"multipart/form-data": {schema}}}
+		if !formHasFiles(form) {
+			body.Content["application/x-www-form-urlencoded"] = mediaType{schema}
+		}
+		op.RequestBody = body
+	}
+
 	status := successStatus(rt)
 	success := response{Description: http.StatusText(status)}
 	switch rt.output {

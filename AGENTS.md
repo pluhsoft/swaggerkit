@@ -19,6 +19,7 @@ Scope: validation and generation only. Authentication, CORS and access logs are 
 | `api.go`              | `API`, `New`, options, groups                             |
 | `route.go`            | `Handle`/`Get`/…, route options, naming                   |
 | `bind.go`             | input analysis, parameter and body binding                |
+| `form.go`             | form fields and file uploads                              |
 | `handler.go`          | request pipeline, outputs, context helpers                |
 | `schema.go`           | `Schema` and its JSON form                                |
 | `schemagen.go`        | Go type → schema, components, enums                       |
