@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -170,5 +171,18 @@ func TestJSONHelpers(t *testing.T) {
 	m.set("a", 2)
 	if b, _ := marshalJSON(m); string(b) != `{"a":2}` {
 		t.Errorf("orderedMap = %s", b)
+	}
+}
+
+// The documentation site must load the same Swagger UI as WithDocs.
+func TestDemoPageMatchesSwaggerUIVersion(t *testing.T) {
+	page, err := os.ReadFile("docs/demo/index.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{swaggerUICSS, swaggerUICSSSRI, swaggerUIJS, swaggerUIJSSRI} {
+		if !strings.Contains(string(page), want) {
+			t.Errorf("docs/demo/index.html does not contain %s", want)
+		}
 	}
 }

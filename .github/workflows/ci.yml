@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  STATICCHECK: honnef.co/go/tools/cmd/staticcheck@v0.8.1
+  GOVULNCHECK: golang.org/x/vuln/cmd/govulncheck@v1.8.0
+  MIN_COVERAGE: 90
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then echo "Run gofmt -w on:"; echo "$unformatted"; exit 1; fi
+      - name: go mod tidy
+        run: go mod tidy -diff
+      - run: go vet ./...
+      - run: go run "$STATICCHECK" ./...
+      - run: go run "$GOVULNCHECK" ./...
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Minimum version from go.mod and the two supported Go releases.
+        go: ['1.24', oldstable, stable]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ matrix.go }}
+      - run: go build ./...
+      - run: go test -race -coverprofile=coverage.out ./...
+      - name: Coverage of the library
+        if: matrix.go == 'stable'
+        run: |
+          go test -coverprofile=core.out . > /dev/null
+          total=$(go tool cover -func=core.out | awk '/^total:/ {sub("%", "", $3); print $3}')
+          echo "Coverage: $total% (minimum $MIN_COVERAGE%)"
+          awk -v t="$total" -v m="$MIN_COVERAGE" 'BEGIN { exit !(t >= m) }'
+      - name: Example OpenAPI document is up to date
+        run: go test ./examples/apiary -run 'TestOpenAPI|TestLint'
+
+  # Single required check for branch rules.
+  verify:
+    if: always()
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All checks passed
+        run: test "${{ needs.lint.result }}" = success && test "${{ needs.test.result }}" = success
+
+  version-policy:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+      - name: Check branch and version policy
+        run: go run ./internal/release check
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
