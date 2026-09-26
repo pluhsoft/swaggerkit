@@ -109,6 +109,9 @@ func (a *API) Lint() []Issue {
 
 	for _, name := range a.gen.componentsSorted() {
 		s := a.gen.components[name]
+		if s.Description == "" {
+			add(SeverityInfo, "type-doc", name, "add a Doc() string method to describe the type")
+		}
 		if len(s.Properties) == 0 {
 			continue
 		}

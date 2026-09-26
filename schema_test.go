@@ -314,3 +314,28 @@ func TestUnknownRuleMessage(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+type documentedHive struct {
+	Name string `json:"name"`
+}
+
+func (documentedHive) Doc() string { return "A beehive." }
+
+type documentedStatus string
+
+func (documentedStatus) Enum() []documentedStatus { return []documentedStatus{"active"} }
+func (*documentedStatus) Doc() string             { return "Colony state." }
+
+func (point) Doc() string { return "ignored: JSONSchema sets the description" }
+
+func TestSchemaTypeDoc(t *testing.T) {
+	g := newSchemaGen()
+	g.schemaOf(reflect.TypeFor[documentedHive](), "test")
+	g.schemaOf(reflect.TypeFor[documentedStatus](), "test")
+	g.schemaOf(reflect.TypeFor[point](), "test")
+	for name, want := range map[string]string{"documentedHive": "A beehive.", "documentedStatus": "Colony state.", "point": "x,y"} {
+		if got := g.components[name].Description; got != want {
+			t.Errorf("%s description = %q, want %q", name, got, want)
+		}
+	}
+}
