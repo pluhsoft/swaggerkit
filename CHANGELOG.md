@@ -6,23 +6,14 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-09-26
-
 ### Added
 
 - `WriteError` sends problem details from middlewares (#7).
-
-### Added
-
 - `Doc() string` method describes a type in the OpenAPI document; `Lint` rule `type-doc` (#10).
-
-### Added
-
 - `Statuses` and `SetStatus` for routes with more than one success status (#9).
-
-### Added
-
 - OpenAPI 3.0 and Swagger 2.0 output: `API.Document`, `API.DocumentHandler`, `/openapi-3.0.json` and `/swagger.json` under `WithDocs` (#3).
+
+## [1.0.0] - 2026-09-26
 
 ### Added
 
