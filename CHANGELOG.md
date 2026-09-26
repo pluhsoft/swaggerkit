@@ -9,16 +9,13 @@ All notable changes are documented here. The format follows
 ### Added
 
 - `WriteError` sends problem details from middlewares (#7).
+- `Doc() string` method describes a type in the OpenAPI document; `Lint` rule `type-doc` (#10).
 
 ### Changed
 
 - Faster request validation: up to 29% less time and 44% fewer allocations; benchmarks in `bench_test.go` (#11).
 
 ## [1.0.0] - 2026-09-26
-
-### Added
-
-- `Doc() string` method describes a type in the OpenAPI document; `Lint` rule `type-doc` (#10).
 
 ### Added
 
