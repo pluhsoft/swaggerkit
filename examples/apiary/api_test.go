@@ -1,0 +1,125 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"flag"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/pluhsoft/swaggerkit"
+)
+
+var update = flag.Bool("update", false, "rewrite openapi.json")
+
+func newTestAPI() *swaggerkit.API {
+	return NewAPI(NewStore(), "beekeeper", slog.New(slog.NewTextHandler(io.Discard, nil)))
+}
+
+// TestOpenAPI keeps openapi.json in sync with the code:
+//
+//	go test ./examples/apiary -run TestOpenAPI -update
+func TestOpenAPI(t *testing.T) {
+	doc, err := newTestAPI().OpenAPI(swaggerkit.OpenAPI31)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if *update {
+		if err := os.WriteFile("openapi.json", doc, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want, err := os.ReadFile("openapi.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(doc, want) {
+		t.Error("openapi.json is outdated; run: go test ./examples/apiary -run TestOpenAPI -update")
+	}
+}
+
+func TestLint(t *testing.T) {
+	for _, issue := range newTestAPI().Lint() {
+		t.Errorf("unexpected lint issue: %s", issue)
+	}
+}
+
+type call struct {
+	method, path, body, token string
+	wantStatus                int
+	wantBody                  string // substring
+}
+
+func TestAPI(t *testing.T) {
+	api := newTestAPI()
+	calls := []call{
+		{method: "GET", path: "/api/v1/hives?limit=2", wantStatus: 200, wantBody: `"total":3`},
+		{method: "GET", path: "/api/v1/hives?status=swarming", wantStatus: 200, wantBody: `"name":"Clover"`},
+		{method: "GET", path: "/api/v1/hives?status=sleeping", wantStatus: 422, wantBody: `"location":"query.status"`},
+		{method: "GET", path: "/api/v1/hives?limit=1000", wantStatus: 422, wantBody: `must be less than or equal to 100`},
+		{method: "GET", path: "/api/v1/hives/1", wantStatus: 200, wantBody: `"name":"Linden"`},
+		{method: "GET", path: "/api/v1/hives/abc", wantStatus: 422, wantBody: `"location":"path.hiveId"`},
+		{method: "GET", path: "/api/v1/hives/99", wantStatus: 404, wantBody: `hive 99 does not exist`},
+		{method: "POST", path: "/api/v1/hives", body: `{"name":"Acacia","location":{"lat":55,"lon":37}}`, wantStatus: 401},
+		{method: "POST", path: "/api/v1/hives", body: `{"name":"Acacia","location":{"lat":55,"lon":37}}`, token: "wrong", wantStatus: 401, wantBody: `unknown token`},
+		{method: "POST", path: "/api/v1/hives", body: `{"name":"Acacia","location":{"lat":55,"lon":37}}`, token: "beekeeper", wantStatus: 201, wantBody: `"status":"empty"`},
+		{method: "POST", path: "/api/v1/hives", body: `{"name":"","location":{"lat":95,"lon":37},"color":"red"}`, token: "beekeeper", wantStatus: 422, wantBody: `"body.location.lat"`},
+		{method: "POST", path: "/api/v1/hives", body: `{"name":`, token: "beekeeper", wantStatus: 400},
+		{method: "POST", path: "/api/v1/hives/4/bees", body: `{"count":5000}`, token: "beekeeper", wantStatus: 200, wantBody: `"status":"active"`},
+		{method: "POST", path: "/api/v1/hives/1/harvests", body: `{"kg":4.5}`, token: "beekeeper", wantStatus: 201, wantBody: `"remainingKg":8`},
+		{method: "POST", path: "/api/v1/hives/1/harvests", body: `{"kg":500}`, token: "beekeeper", wantStatus: 422},
+		{method: "POST", path: "/api/v1/hives/1/harvests", body: `{"kg":10}`, token: "beekeeper", wantStatus: 409, wantBody: `only 6.0 kg`},
+		{method: "PATCH", path: "/api/v1/hives/2", body: `{"status":"dormant"}`, token: "beekeeper", wantStatus: 200, wantBody: `"status":"dormant"`},
+		{method: "GET", path: "/api/v1/hives/1/label", wantStatus: 200, wantBody: "Hive #1 Linden"},
+		{method: "DELETE", path: "/api/v1/hives/3", token: "beekeeper", wantStatus: 204},
+		{method: "GET", path: "/api/v1/stats", wantStatus: 200, wantBody: `"hives":3`},
+		{method: "GET", path: "/api/v1/docs", wantStatus: 200, wantBody: "swagger-ui"},
+		{method: "GET", path: "/api/v1/docs/openapi-3.0.json", wantStatus: 200, wantBody: `"openapi": "3.0.3"`},
+	}
+	for _, c := range calls {
+		t.Run(c.method+" "+c.path, func(t *testing.T) {
+			var body io.Reader
+			if c.body != "" {
+				body = strings.NewReader(c.body)
+			}
+			req := httptest.NewRequest(c.method, c.path, body)
+			if c.body != "" {
+				req.Header.Set("Content-Type", "application/json")
+			}
+			if c.token != "" {
+				req.Header.Set("Authorization", "Bearer "+c.token)
+			}
+			rec := httptest.NewRecorder()
+			api.ServeHTTP(rec, req)
+			if rec.Code != c.wantStatus {
+				t.Fatalf("status %d, want %d; body: %s", rec.Code, c.wantStatus, rec.Body)
+			}
+			if !strings.Contains(rec.Body.String(), c.wantBody) {
+				t.Fatalf("body %s does not contain %s", rec.Body, c.wantBody)
+			}
+			if rec.Code >= 400 {
+				var p map[string]any
+				if err := json.Unmarshal(rec.Body.Bytes(), &p); err != nil || p["status"] != float64(rec.Code) {
+					t.Fatalf("error body is not problem details: %s", rec.Body)
+				}
+			}
+		})
+	}
+}
+
+func TestCORSPreflight(t *testing.T) {
+	req := httptest.NewRequest(http.MethodOptions, "/api/v1/hives", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
+	req.Header.Set("Access-Control-Request-Method", "POST")
+	req.Header.Set("Access-Control-Request-Headers", "authorization, content-type")
+	rec := httptest.NewRecorder()
+	newTestAPI().ServeHTTP(rec, req)
+	if rec.Code != http.StatusNoContent || rec.Header().Get("Access-Control-Allow-Origin") != "http://localhost:3000" {
+		t.Fatalf("preflight: %d %v", rec.Code, rec.Header())
+	}
+}

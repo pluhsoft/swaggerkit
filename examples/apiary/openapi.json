@@ -1,0 +1,1133 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Apiary API",
+    "description": "Manage beehives: count bees, move colonies and harvest honey. An example of swaggerkit.",
+    "license": {
+      "name": "MIT",
+      "identifier": "MIT"
+    },
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "tags": [
+    {
+      "name": "hives",
+      "description": "Beehives and their colonies"
+    },
+    {
+      "name": "honey",
+      "description": "Honey harvests"
+    },
+    {
+      "name": "apiary",
+      "description": "The apiary as a whole"
+    }
+  ],
+  "paths": {
+    "/hives": {
+      "get": {
+        "tags": [
+          "hives"
+        ],
+        "summary": "List hives",
+        "operationId": "listHives",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Page size",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Items to skip",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Only hives in this state",
+            "schema": {
+              "$ref": "#/components/schemas/HiveStatus"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "description": "Only hives with all of these tags",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 5
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageHive"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "hives"
+        ],
+        "summary": "Create hive",
+        "operationId": "createHive",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewHive"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Hive"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "beekeeper": []
+          }
+        ]
+      }
+    },
+    "/hives/{hiveId}": {
+      "get": {
+        "tags": [
+          "hives"
+        ],
+        "summary": "Get hive",
+        "operationId": "getHive",
+        "parameters": [
+          {
+            "name": "hiveId",
+            "in": "path",
+            "description": "Hive ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1,
+              "examples": [
+                1
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Hive"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "hives"
+        ],
+        "summary": "Delete hive",
+        "operationId": "deleteHive",
+        "parameters": [
+          {
+            "name": "hiveId",
+            "in": "path",
+            "description": "Hive ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1,
+              "examples": [
+                1
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "beekeeper": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "hives"
+        ],
+        "summary": "Update hive",
+        "operationId": "updateHive",
+        "parameters": [
+          {
+            "name": "hiveId",
+            "in": "path",
+            "description": "Hive ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1,
+              "examples": [
+                1
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HiveUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Hive"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "beekeeper": []
+          }
+        ]
+      }
+    },
+    "/hives/{hiveId}/bees": {
+      "post": {
+        "tags": [
+          "hives"
+        ],
+        "summary": "Move bees into a hive",
+        "operationId": "addBees",
+        "parameters": [
+          {
+            "name": "hiveId",
+            "in": "path",
+            "description": "Hive ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1,
+              "examples": [
+                1
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "count": {
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 1,
+                    "maximum": 50000,
+                    "description": "Number of bees to add",
+                    "examples": [
+                      5000
+                    ]
+                  }
+                },
+                "required": [
+                  "count"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Hive"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "beekeeper": []
+          }
+        ]
+      }
+    },
+    "/hives/{hiveId}/harvests": {
+      "post": {
+        "tags": [
+          "hives",
+          "honey"
+        ],
+        "summary": "Harvest honey",
+        "operationId": "harvestHoney",
+        "parameters": [
+          {
+            "name": "hiveId",
+            "in": "path",
+            "description": "Hive ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1,
+              "examples": [
+                1
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kg": {
+                    "type": "number",
+                    "format": "double",
+                    "exclusiveMinimum": 0,
+                    "maximum": 100,
+                    "description": "Honey to take, kg",
+                    "examples": [
+                      4.5
+                    ]
+                  }
+                },
+                "required": [
+                  "kg"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Harvest"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "beekeeper": []
+          }
+        ]
+      }
+    },
+    "/hives/{hiveId}/label": {
+      "get": {
+        "tags": [
+          "hives"
+        ],
+        "summary": "Print a hive label",
+        "operationId": "hiveLabel",
+        "parameters": [
+          {
+            "name": "hiveId",
+            "in": "path",
+            "description": "Hive ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1,
+              "examples": [
+                1
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats": {
+      "get": {
+        "tags": [
+          "apiary"
+        ],
+        "summary": "Count hives, bees and honey",
+        "operationId": "getStats",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stats"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Harvest": {
+        "type": "object",
+        "properties": {
+          "hiveId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Hive the honey was taken from",
+            "examples": [
+              1
+            ]
+          },
+          "kg": {
+            "type": "number",
+            "format": "double",
+            "description": "Honey taken, kg",
+            "examples": [
+              4.5
+            ]
+          },
+          "remainingKg": {
+            "type": "number",
+            "format": "double",
+            "description": "Honey left in the hive, kg",
+            "examples": [
+              8
+            ]
+          },
+          "harvestedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the honey was taken"
+          },
+          "beekeeper": {
+            "type": "string",
+            "description": "Who harvested",
+            "examples": [
+              "beekeeper"
+            ]
+          }
+        },
+        "required": [
+          "hiveId",
+          "kg",
+          "remainingKg",
+          "harvestedAt",
+          "beekeeper"
+        ]
+      },
+      "Hive": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Hive ID",
+            "examples": [
+              1
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "Name painted on the hive",
+            "examples": [
+              "Linden"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/HiveStatus",
+            "description": "Colony state"
+          },
+          "bees": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of bees living in the hive",
+            "examples": [
+              42000
+            ]
+          },
+          "honeyKg": {
+            "type": "number",
+            "format": "double",
+            "description": "Honey stored in the hive, kg",
+            "examples": [
+              12.5
+            ]
+          },
+          "queen": {
+            "$ref": "#/components/schemas/Queen",
+            "description": "Queen of the colony, if there is one"
+          },
+          "location": {
+            "$ref": "#/components/schemas/Location",
+            "description": "Where the hive stands"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Free-form labels",
+            "examples": [
+              [
+                "meadow",
+                "calm"
+              ]
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the hive was set up"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status",
+          "bees",
+          "honeyKg",
+          "location",
+          "tags",
+          "createdAt"
+        ]
+      },
+      "HiveStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "swarming",
+          "dormant",
+          "empty"
+        ]
+      },
+      "HiveUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "New name"
+          },
+          "status": {
+            "$ref": "#/components/schemas/HiveStatus",
+            "description": "New colony state"
+          },
+          "queen": {
+            "$ref": "#/components/schemas/Queen",
+            "description": "New queen"
+          }
+        }
+      },
+      "Location": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "number",
+            "format": "double",
+            "minimum": -90,
+            "maximum": 90,
+            "description": "Latitude",
+            "examples": [
+              55.75
+            ]
+          },
+          "lon": {
+            "type": "number",
+            "format": "double",
+            "minimum": -180,
+            "maximum": 180,
+            "description": "Longitude",
+            "examples": [
+              37.62
+            ]
+          }
+        },
+        "required": [
+          "lat",
+          "lon"
+        ]
+      },
+      "NewHive": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Name painted on the hive",
+            "examples": [
+              "Linden"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/HiveStatus",
+            "description": "Initial colony state",
+            "default": "empty"
+          },
+          "location": {
+            "$ref": "#/components/schemas/Location",
+            "description": "Where the hive stands"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32
+            },
+            "maxItems": 10,
+            "uniqueItems": true,
+            "description": "Free-form labels"
+          }
+        },
+        "required": [
+          "name",
+          "location"
+        ]
+      },
+      "PageHive": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Hive"
+            },
+            "description": "Items on this page"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of items in all pages",
+            "examples": [
+              3
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Page size",
+            "examples": [
+              20
+            ]
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Items skipped",
+            "examples": [
+              0
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ]
+      },
+      "Queen": {
+        "type": "object",
+        "properties": {
+          "breed": {
+            "type": "string",
+            "enum": [
+              "carniolan",
+              "italian",
+              "buckfast"
+            ],
+            "description": "Bee breed",
+            "examples": [
+              "carniolan"
+            ]
+          },
+          "bornOn": {
+            "type": "string",
+            "format": "date",
+            "description": "Date the queen hatched",
+            "examples": [
+              "2026-05-14"
+            ]
+          }
+        },
+        "required": [
+          "breed",
+          "bornOn"
+        ]
+      },
+      "Stats": {
+        "type": "object",
+        "properties": {
+          "hives": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of hives",
+            "examples": [
+              3
+            ]
+          },
+          "bees": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bees in all hives",
+            "examples": [
+              97000
+            ]
+          },
+          "honeyKg": {
+            "type": "number",
+            "format": "double",
+            "description": "Honey in all hives, kg",
+            "examples": [
+              31.5
+            ]
+          }
+        },
+        "required": [
+          "hives",
+          "bees",
+          "honeyKg"
+        ]
+      },
+      "Problem": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri-reference",
+            "examples": [
+              "about:blank"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "examples": [
+              "Unprocessable Entity"
+            ]
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "examples": [
+              422
+            ]
+          },
+          "detail": {
+            "type": "string",
+            "examples": [
+              "request validation failed"
+            ]
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "location": {
+                  "type": "string",
+                  "examples": [
+                    "body.name"
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "examples": [
+                    "is required"
+                  ]
+                }
+              },
+              "required": [
+                "location",
+                "message"
+              ]
+            }
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status"
+        ],
+        "description": "Problem details, RFC 9457."
+      }
+    },
+    "securitySchemes": {
+      "beekeeper": {
+        "type": "http",
+        "description": "Beekeeper token. The demo token is `beekeeper`.",
+        "scheme": "bearer"
+      }
+    }
+  }
+}
