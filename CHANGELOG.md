@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-26
+
 ### Added
 
 - Typed handlers on `net/http`: `Get`, `Post`, `Put`, `Patch`, `Delete`, `Handle`, groups and middlewares.
