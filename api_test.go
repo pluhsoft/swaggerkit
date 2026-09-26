@@ -413,3 +413,44 @@ func TestScalarParams(t *testing.T) {
 	expect(t, rec, 200, `"Count":3`, `"IDs":[1,255]`, `"Ratio":0.5`, `"Flags":[true,false]`, `"Name":"bee"`, `"When":"2026-09-26T10:00:00Z"`)
 	expect(t, do(t, api, request{method: "GET", target: "/p?id=65536"}), 422, `"location":"query.id[0]"`)
 }
+
+func TestSetStatus(t *testing.T) {
+	api, logs := newTestAPI()
+	type in struct {
+		ID   int `path:"id"`
+		Body struct {
+			Name string `json:"name"`
+		}
+	}
+	existing := map[int]bool{1: true}
+	Put(api, "/hives/{id}", func(ctx context.Context, in in) (string, error) {
+		if !existing[in.ID] {
+			existing[in.ID] = true
+			SetStatus(ctx, http.StatusCreated)
+		}
+		return in.Body.Name, nil
+	}, Statuses(http.StatusCreated))
+	Get(api, "/wrong", func(ctx context.Context, _ struct{}) (string, error) {
+		SetStatus(ctx, http.StatusAccepted)
+		return "", nil
+	})
+
+	expect(t, do(t, api, request{method: "PUT", target: "/hives/1", body: `{"name":"a"}`}), 200)
+	expect(t, do(t, api, request{method: "PUT", target: "/hives/2", body: `{"name":"b"}`}), 201, `"b"`)
+	expect(t, do(t, api, request{method: "GET", target: "/wrong"}), 500)
+	if !strings.Contains(logs.String(), "document it with Statuses(202)") {
+		t.Errorf("undocumented status not logged: %s", logs)
+	}
+	SetStatus(context.Background(), 201) // no-op outside handlers
+
+	doc, _ := api.OpenAPI()
+	if !strings.Contains(string(doc), `"201": {`) || !strings.Contains(string(doc), `"description": "Created"`) {
+		t.Errorf("201 is not documented:\n%s", doc)
+	}
+	defer func() {
+		if r := recover(); r == nil || !strings.Contains(panicText(r), "success status 404") {
+			t.Errorf("panic = %v", r)
+		}
+	}()
+	Get(api, "/bad", func(ctx context.Context, _ struct{}) (string, error) { return "", nil }, Statuses(404))
+}

@@ -10,6 +10,7 @@ All notable changes are documented here. The format follows
 
 - `WriteError` sends problem details from middlewares (#7).
 - `Doc() string` method describes a type in the OpenAPI document; `Lint` rule `type-doc` (#10).
+- `Statuses` and `SetStatus` for routes with more than one success status (#9).
 
 ### Changed
 
