@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"slices"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -33,11 +34,40 @@ func validateValue(g *schemaGen, s *Schema, v any, loc string) []FieldError {
 	return val.errs
 }
 
-func (val *validator) fail(loc, format string, args ...any) {
-	val.errs = append(val.errs, FieldError{Location: loc, Message: fmt.Sprintf(format, args...)})
+// check validates v; loc names the root value, e.g. "body". Errors are
+// sorted by location, so the output does not depend on map order.
+func (val *validator) check(s *Schema, v any, loc string) {
+	val.checkAt(s, v, &valuePath{key: loc, index: -1})
+	slices.SortStableFunc(val.errs, func(a, b FieldError) int { return strings.Compare(a.Location, b.Location) })
 }
 
-func (val *validator) check(s *Schema, v any, loc string) {
+// valuePath is the location of a value. It is turned into a string only when
+// validation fails, so valid requests do not pay for it.
+type valuePath struct {
+	parent *valuePath
+	key    string
+	index  int // array index, or -1 for an object key
+}
+
+func (p *valuePath) String() string {
+	if p.parent == nil {
+		return p.key
+	}
+	prefix := p.parent.String()
+	switch {
+	case p.index >= 0:
+		return prefix + "[" + strconv.Itoa(p.index) + "]"
+	case prefix == "":
+		return p.key
+	}
+	return prefix + "." + p.key
+}
+
+func (val *validator) fail(p *valuePath, format string, args ...any) {
+	val.errs = append(val.errs, FieldError{Location: p.String(), Message: fmt.Sprintf(format, args...)})
+}
+
+func (val *validator) checkAt(s *Schema, v any, p *valuePath) {
 	if s == nil {
 		return
 	}
@@ -45,12 +75,12 @@ func (val *validator) check(s *Schema, v any, loc string) {
 	s = val.gen.resolve(s)
 	if v == nil {
 		if !nullable && !s.Nullable && s.Type != "" {
-			val.fail(loc, "must not be null")
+			val.fail(p, "must not be null")
 		}
 		return
 	}
 	if len(s.Enum) > 0 && !enumContains(s.Enum, v) {
-		val.fail(loc, "must be one of %s", enumList(s.Enum))
+		val.fail(p, "must be one of %s", enumList(s.Enum))
 		return
 	}
 	switch s.Type {
@@ -58,109 +88,119 @@ func (val *validator) check(s *Schema, v any, loc string) {
 		// any value
 	case "boolean":
 		if _, ok := v.(bool); !ok {
-			val.fail(loc, "must be a boolean")
+			val.fail(p, "must be a boolean")
 		}
 	case "string":
 		str, ok := v.(string)
 		if !ok {
-			val.fail(loc, "must be a string")
+			val.fail(p, "must be a string")
 			return
 		}
-		val.checkString(s, str, loc)
+		val.checkString(s, str, p)
 	case "integer", "number":
 		n, ok := v.(json.Number)
 		if !ok {
-			val.fail(loc, "must be a number")
+			val.fail(p, "must be a number")
 			return
 		}
-		val.checkNumber(s, n, loc)
+		val.checkNumber(s, n, p)
 	case "array":
 		items, ok := v.([]any)
 		if !ok {
-			val.fail(loc, "must be an array")
+			val.fail(p, "must be an array")
 			return
 		}
-		val.checkArray(s, items, loc)
+		val.checkArray(s, items, p)
 	case "object":
 		obj, ok := v.(map[string]any)
 		if !ok {
-			val.fail(loc, "must be an object")
+			val.fail(p, "must be an object")
 			return
 		}
-		val.checkObject(s, obj, loc)
+		val.checkObject(s, obj, p)
 	}
 }
 
-func (val *validator) checkString(s *Schema, str, loc string) {
-	n := utf8.RuneCountInString(str)
-	if s.MinLength != nil && n < *s.MinLength {
-		val.fail(loc, "must be at least %d characters long", *s.MinLength)
-	}
-	if s.MaxLength != nil && n > *s.MaxLength {
-		val.fail(loc, "must be at most %d characters long", *s.MaxLength)
+func (val *validator) checkString(s *Schema, str string, p *valuePath) {
+	if s.MinLength != nil || s.MaxLength != nil {
+		n := utf8.RuneCountInString(str)
+		if s.MinLength != nil && n < *s.MinLength {
+			val.fail(p, "must be at least %d characters long", *s.MinLength)
+		}
+		if s.MaxLength != nil && n > *s.MaxLength {
+			val.fail(p, "must be at most %d characters long", *s.MaxLength)
+		}
 	}
 	if s.pattern != nil && !s.pattern.MatchString(str) {
-		val.fail(loc, "must match pattern %s", s.Pattern)
+		val.fail(p, "must match pattern %s", s.Pattern)
 	}
 	if s.Format != "" {
 		if msg := checkFormat(s.Format, str); msg != "" {
-			val.fail(loc, "%s", msg)
+			val.fail(p, "%s", msg)
 		}
 	}
 }
 
-func (val *validator) checkNumber(s *Schema, n json.Number, loc string) {
-	f, ok := new(big.Float).SetString(n.String())
-	if !ok {
-		val.fail(loc, "must be a number")
-		return
-	}
+func (val *validator) checkNumber(s *Schema, n json.Number, p *valuePath) {
+	str := n.String()
+	var f float64
 	if s.Type == "integer" {
-		if !f.IsInt() {
-			val.fail(loc, "must be an integer")
-			return
-		}
-		if _, err := strconv.ParseInt(n.String(), 10, 64); err != nil {
-			if _, err := strconv.ParseUint(n.String(), 10, 64); err != nil {
-				val.fail(loc, "must be an integer written without a fraction or exponent, in the 64-bit range")
+		i, err := strconv.ParseInt(str, 10, 64)
+		switch {
+		case err == nil:
+			if s.Format == "int32" && (i < math.MinInt32 || i > math.MaxInt32) {
+				val.fail(p, "must fit into 32 bits")
 				return
 			}
-		}
-		if s.Format == "int32" && (f.Cmp(big.NewFloat(math.MinInt32)) < 0 || f.Cmp(big.NewFloat(math.MaxInt32)) > 0) {
-			val.fail(loc, "must fit into 32 bits")
+			f = float64(i)
+		default:
+			u, uerr := strconv.ParseUint(str, 10, 64)
+			if uerr == nil {
+				f = float64(u)
+				break
+			}
+			if fv, ferr := strconv.ParseFloat(str, 64); ferr == nil && fv == math.Trunc(fv) {
+				val.fail(p, "must be an integer written without a fraction or exponent, in the 64-bit range")
+			} else {
+				val.fail(p, "must be an integer")
+			}
 			return
 		}
-	} else if f.IsInf() {
-		val.fail(loc, "must be a finite number")
-		return
+	} else {
+		fv, err := strconv.ParseFloat(str, 64)
+		if err != nil {
+			val.fail(p, "must be a finite number")
+			return
+		}
+		f = fv
 	}
-	cmp := func(p *float64) int { return f.Cmp(big.NewFloat(*p)) }
-	if s.Minimum != nil && cmp(s.Minimum) < 0 {
-		val.fail(loc, "must be greater than or equal to %s", fmtNum(*s.Minimum))
+	if s.Minimum != nil && f < *s.Minimum {
+		val.fail(p, "must be greater than or equal to %s", fmtNum(*s.Minimum))
 	}
-	if s.ExclusiveMinimum != nil && cmp(s.ExclusiveMinimum) <= 0 {
-		val.fail(loc, "must be greater than %s", fmtNum(*s.ExclusiveMinimum))
+	if s.ExclusiveMinimum != nil && f <= *s.ExclusiveMinimum {
+		val.fail(p, "must be greater than %s", fmtNum(*s.ExclusiveMinimum))
 	}
-	if s.Maximum != nil && cmp(s.Maximum) > 0 {
-		val.fail(loc, "must be less than or equal to %s", fmtNum(*s.Maximum))
+	if s.Maximum != nil && f > *s.Maximum {
+		val.fail(p, "must be less than or equal to %s", fmtNum(*s.Maximum))
 	}
-	if s.ExclusiveMaximum != nil && cmp(s.ExclusiveMaximum) >= 0 {
-		val.fail(loc, "must be less than %s", fmtNum(*s.ExclusiveMaximum))
+	if s.ExclusiveMaximum != nil && f >= *s.ExclusiveMaximum {
+		val.fail(p, "must be less than %s", fmtNum(*s.ExclusiveMaximum))
 	}
 	if s.MultipleOf != nil {
-		q := new(big.Float).Quo(f, big.NewFloat(*s.MultipleOf))
-		if !q.IsInt() {
-			val.fail(loc, "must be a multiple of %s", fmtNum(*s.MultipleOf))
+		// Exact decimal arithmetic: 0.3 is a multiple of 0.1.
+		exact, _ := new(big.Float).SetString(str)
+		if q := new(big.Float).Quo(exact, big.NewFloat(*s.MultipleOf)); !q.IsInt() {
+			val.fail(p, "must be a multiple of %s", fmtNum(*s.MultipleOf))
 		}
 	}
 }
 
-func (val *validator) checkArray(s *Schema, items []any, loc string) {
+func (val *validator) checkArray(s *Schema, items []any, p *valuePath) {
 	if s.MinItems != nil && len(items) < *s.MinItems {
-		val.fail(loc, "must contain at least %d items", *s.MinItems)
+		val.fail(p, "must contain at least %d items", *s.MinItems)
 	}
 	if s.MaxItems != nil && len(items) > *s.MaxItems {
-		val.fail(loc, "must contain at most %d items", *s.MaxItems)
+		val.fail(p, "must contain at most %d items", *s.MaxItems)
 		return // do not spend time on items of an oversized array
 	}
 	if s.UniqueItems {
@@ -168,32 +208,35 @@ func (val *validator) checkArray(s *Schema, items []any, loc string) {
 		for _, it := range items {
 			key := canonical(it)
 			if seen[key] {
-				val.fail(loc, "must not contain duplicate items")
+				val.fail(p, "must not contain duplicate items")
 				break
 			}
 			seen[key] = true
 		}
 	}
+	item := valuePath{parent: p}
 	for i, it := range items {
-		val.check(s.Items, it, loc+"["+strconv.Itoa(i)+"]")
+		item.index = i
+		val.checkAt(s.Items, it, &item)
 	}
 }
 
-func (val *validator) checkObject(s *Schema, obj map[string]any, loc string) {
+func (val *validator) checkObject(s *Schema, obj map[string]any, p *valuePath) {
 	if s.MinProperties != nil && len(obj) < *s.MinProperties {
-		val.fail(loc, "must contain at least %d entries", *s.MinProperties)
+		val.fail(p, "must contain at least %d entries", *s.MinProperties)
 	}
 	if s.MaxProperties != nil && len(obj) > *s.MaxProperties {
-		val.fail(loc, "must contain at most %d entries", *s.MaxProperties)
+		val.fail(p, "must contain at most %d entries", *s.MaxProperties)
 		return
 	}
+	field := valuePath{parent: p, index: -1}
 	for _, name := range s.Required {
 		if _, ok := obj[name]; !ok {
-			val.fail(join(loc, name), "is required")
+			field.key = name
+			val.fail(&field, "is required")
 		}
 	}
-	for _, name := range s.propertyNames() {
-		prop := s.Properties[name]
+	for name, prop := range s.Properties {
 		v, ok := obj[name]
 		if !ok {
 			if val.fillDefaults && prop.Default != nil {
@@ -202,31 +245,24 @@ func (val *validator) checkObject(s *Schema, obj map[string]any, loc string) {
 			}
 			continue
 		}
-		val.check(prop, v, join(loc, name))
+		field.key = name
+		val.checkAt(prop, v, &field)
 	}
-	keys := make([]string, 0, len(obj))
-	for k := range obj {
-		keys = append(keys, k)
+	if len(obj) <= len(s.Properties) && s.AdditionalProperties == nil && !(s.closed && val.strict) {
+		return
 	}
-	slices.Sort(keys)
-	for _, k := range keys {
+	for k, v := range obj {
 		if _, known := s.Properties[k]; known {
 			continue
 		}
+		field.key = k
 		switch {
 		case s.AdditionalProperties != nil:
-			val.check(s.AdditionalProperties, obj[k], join(loc, k))
+			val.checkAt(s.AdditionalProperties, v, &field)
 		case s.closed && val.strict:
-			val.fail(join(loc, k), "unknown field")
+			val.fail(&field, "unknown field")
 		}
 	}
-}
-
-func join(loc, name string) string {
-	if loc == "" {
-		return name
-	}
-	return loc + "." + name
 }
 
 func enumContains(enum []any, v any) bool {
