@@ -32,6 +32,7 @@ type inputPlan struct {
 	typ    reflect.Type
 	params []*paramPlan
 	body   *bodyPlan
+	form   []*formField
 }
 
 type paramPlan struct {
@@ -50,7 +51,7 @@ type bodyPlan struct {
 	description string // doc tag of the Body field
 }
 
-func (p *inputPlan) empty() bool { return len(p.params) == 0 && p.body == nil }
+func (p *inputPlan) empty() bool { return len(p.params) == 0 && p.body == nil && len(p.form) == 0 }
 
 // analyzeInput reads the input type of a handler.
 func analyzeInput(g *schemaGen, t reflect.Type, method string, pathParams []string, where string) *inputPlan {
@@ -67,6 +68,14 @@ func analyzeInput(g *schemaGen, t reflect.Type, method string, pathParams []stri
 		plan.body = &bodyPlan{typ: t, required: true}
 	}
 
+	if len(plan.form) > 0 {
+		if plan.body != nil {
+			fail(t.Name(), "use either a Body field or form fields")
+		}
+		if method == http.MethodGet || method == http.MethodHead {
+			fail("input", "%s requests cannot have a form body", method)
+		}
+	}
 	if b := plan.body; b != nil {
 		if method == http.MethodGet || method == http.MethodHead {
 			fail("input", "%s requests cannot have a body; tag the fields of %s as query parameters", method, t)
@@ -99,7 +108,13 @@ func collectInput(g *schemaGen, t reflect.Type, index []int, plan *inputPlan, un
 		sf := t.Field(i)
 		idx := append(slices.Clone(index), i)
 		loc, name := paramTag(sf.Tag)
+		formName, isForm := sf.Tag.Lookup(inForm)
 		switch {
+		case isForm:
+			if !sf.IsExported() {
+				fail(t.Name()+"."+sf.Name, "form fields must be exported")
+			}
+			plan.form = append(plan.form, newFormField(g, sf, idx, formName, t.Name()+"."+sf.Name))
 		case loc != "":
 			if !sf.IsExported() {
 				fail(t.Name()+"."+sf.Name, "parameter fields must be exported")
@@ -166,7 +181,7 @@ func isTextType(t reflect.Type) bool {
 }
 
 // bind decodes and validates the request into a new In value.
-func (p *inputPlan) bind(a *API, w http.ResponseWriter, r *http.Request) (reflect.Value, *Error) {
+func (p *inputPlan) bind(a *API, w http.ResponseWriter, r *http.Request, limit int64) (reflect.Value, *Error) {
 	in := reflect.New(p.typ).Elem()
 	var errs []FieldError
 	var query map[string][]string
@@ -194,12 +209,19 @@ func (p *inputPlan) bind(a *API, w http.ResponseWriter, r *http.Request) (reflec
 		if p.body.index != nil {
 			target = in.FieldByIndex(p.body.index)
 		}
-		if e := p.body.decode(a, w, r, target); e != nil {
+		if e := p.body.decode(a, w, r, target, limit); e != nil {
 			if e.Status != http.StatusUnprocessableEntity {
 				return in, e
 			}
 			errs = append(errs, e.Errors...)
 		}
+	}
+	if len(p.form) > 0 {
+		formErrs, e := p.bindForm(a, w, r, in, limit)
+		if e != nil {
+			return in, e
+		}
+		errs = append(errs, formErrs...)
 	}
 	if len(errs) > 0 {
 		return in, validationError(http.StatusUnprocessableEntity, "request validation failed", errs)
@@ -373,12 +395,12 @@ func typeWord(s *Schema) string {
 }
 
 // decode reads, validates and decodes the JSON body into target.
-func (b *bodyPlan) decode(a *API, w http.ResponseWriter, r *http.Request, target reflect.Value) *Error {
-	data, err := readBody(w, r, a.maxBodyBytes)
+func (b *bodyPlan) decode(a *API, w http.ResponseWriter, r *http.Request, target reflect.Value, limit int64) *Error {
+	data, err := readBody(w, r, limit)
 	if err != nil {
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {
-			return NewError(http.StatusRequestEntityTooLarge, fmt.Sprintf("request body must not exceed %d bytes", a.maxBodyBytes))
+			return NewError(http.StatusRequestEntityTooLarge, fmt.Sprintf("request body must not exceed %d bytes", limit))
 		}
 		return BadRequest("could not read the request body")
 	}

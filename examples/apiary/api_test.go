@@ -6,6 +6,8 @@ import (
 	"flag"
 	"io"
 	"log/slog"
+	"mime/multipart"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -60,6 +62,40 @@ type call struct {
 	wantStatus                int
 	wantBody                  string // substring
 	wantHeader                string // "Name: value"
+}
+
+func TestPhotoUpload(t *testing.T) {
+	api := newTestAPI()
+	upload := func(content, token string) *httptest.ResponseRecorder {
+		var buf bytes.Buffer
+		mw := multipart.NewWriter(&buf)
+		_ = mw.WriteField("caption", "Spring inspection")
+		fw, _ := mw.CreateFormFile("photo", "linden.png")
+		_, _ = fw.Write([]byte(content))
+		_ = mw.Close()
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/hives/1/photo", &buf)
+		req.Header.Set("Content-Type", mw.FormDataContentType())
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		api.ServeHTTP(rec, req)
+		return rec
+	}
+	png := "\x89PNG\r\n\x1a\n" + strings.Repeat("\x00", 32)
+
+	if rec := upload(png, "wrong"); rec.Code != 401 {
+		t.Fatalf("without token: %d", rec.Code)
+	}
+	if rec := upload("not an image", "beekeeper"); rec.Code != 422 || !strings.Contains(rec.Body.String(), "must be a JPEG or PNG image") {
+		t.Fatalf("text file: %d %s", rec.Code, rec.Body)
+	}
+	if rec := upload(png, "beekeeper"); rec.Code != 200 || !strings.Contains(rec.Body.String(), `"contentType":"image/png"`) {
+		t.Fatalf("upload: %d %s", rec.Code, rec.Body)
+	}
+	rec := httptest.NewRecorder()
+	api.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/hives/1/photo", nil))
+	if rec.Code != 200 || rec.Header().Get("Content-Type") != "image/png" || rec.Body.String() != png {
+		t.Fatalf("download: %d %v", rec.Code, rec.Header())
+	}
 }
 
 func TestAPI(t *testing.T) {

@@ -268,6 +268,45 @@
       ],
       "type": "object"
     },
+    "PhotoInfo": {
+      "description": "A photo of a hive.",
+      "properties": {
+        "caption": {
+          "description": "Caption",
+          "example": "Spring inspection",
+          "type": "string"
+        },
+        "contentType": {
+          "description": "image/jpeg or image/png",
+          "example": "image/jpeg",
+          "type": "string"
+        },
+        "hiveId": {
+          "description": "Hive ID",
+          "example": 1,
+          "format": "int64",
+          "type": "integer"
+        },
+        "name": {
+          "description": "Original file name",
+          "example": "linden.jpg",
+          "type": "string"
+        },
+        "size": {
+          "description": "Size in bytes",
+          "example": 48213,
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "hiveId",
+        "name",
+        "contentType",
+        "size"
+      ],
+      "type": "object"
+    },
     "Problem": {
       "description": "Problem details, RFC 9457.",
       "properties": {
@@ -912,6 +951,132 @@
           }
         },
         "summary": "Print a hive label",
+        "tags": [
+          "hives"
+        ]
+      }
+    },
+    "/hives/{hiveId}/photo": {
+      "get": {
+        "operationId": "getPhoto",
+        "parameters": [
+          {
+            "description": "Hive ID",
+            "format": "int64",
+            "in": "path",
+            "minimum": 1,
+            "name": "hiveId",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "produces": [
+          "application/problem+json",
+          "image/*"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "file"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/Problem"
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "schema": {
+              "$ref": "#/definitions/Problem"
+            }
+          },
+          "default": {
+            "description": "Error",
+            "schema": {
+              "$ref": "#/definitions/Problem"
+            }
+          }
+        },
+        "summary": "Get the photo of a hive",
+        "tags": [
+          "hives"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "operationId": "uploadPhoto",
+        "parameters": [
+          {
+            "description": "Hive ID",
+            "format": "int64",
+            "in": "path",
+            "minimum": 1,
+            "name": "hiveId",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "description": "Caption",
+            "in": "formData",
+            "maxLength": 100,
+            "name": "caption",
+            "type": "string"
+          },
+          {
+            "description": "JPEG or PNG image, up to 2 MiB",
+            "in": "formData",
+            "name": "photo",
+            "required": true,
+            "type": "file"
+          }
+        ],
+        "produces": [
+          "application/json",
+          "application/problem+json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/PhotoInfo"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/Problem"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/Problem"
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "schema": {
+              "$ref": "#/definitions/Problem"
+            }
+          },
+          "default": {
+            "description": "Error",
+            "schema": {
+              "$ref": "#/definitions/Problem"
+            }
+          }
+        },
+        "security": [
+          {
+            "beekeeper": []
+          }
+        ],
+        "summary": "Upload a photo of a hive",
         "tags": [
           "hives"
         ]

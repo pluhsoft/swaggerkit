@@ -111,7 +111,16 @@ func serve[In, Out any](a *API, rt *route, w http.ResponseWriter, r *http.Reques
 		}
 	}()
 
-	in, verr := rt.input.bind(a, w, r)
+	limit := a.maxBodyBytes
+	if rt.cfg.maxBodyBytes > 0 {
+		limit = rt.cfg.maxBodyBytes
+	}
+	defer func() {
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll() // temporary files of uploads
+		}
+	}()
+	in, verr := rt.input.bind(a, w, r, limit)
 	if verr != nil {
 		a.writeError(ctx, w, verr)
 		return

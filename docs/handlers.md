@@ -22,6 +22,8 @@ Mistakes in routes and types panic at registration with the route and field in t
 | `header:"X-Request-Id"`        | header                         |
 | `cookie:"session"`             | cookie                         |
 | field named `Body`             | JSON body; `*T` makes it optional |
+| `form:"caption"`               | form field (`multipart/form-data` or urlencoded) |
+| `form:"photo"` on `*multipart.FileHeader` | uploaded file; `[]*multipart.FileHeader` for several |
 | embedded struct without tag    | its fields, e.g. shared pagination |
 
 If the input has none of these, the whole input is the JSON body:
@@ -64,6 +66,23 @@ func PutHive(ctx context.Context, in PutHiveInput) (Hive, error) {
 	return hive, nil
 }
 ```
+
+### Uploads
+
+```go
+type UploadPhotoInput struct {
+	HivePath
+	Photo   *multipart.FileHeader `form:"photo" validate:"required" doc:"JPEG or PNG"`
+	Caption string                `form:"caption" validate:"optional,max=100"`
+}
+
+swaggerkit.Put(api, "/hives/{hiveId}/photo", UploadPhoto, swaggerkit.MaxBodyBytes(2<<20))
+```
+
+- A route uses either `Body` or `form` fields.
+- Form fields follow the parameter rules; files support `required` and `max` (number of files).
+- `MaxBodyBytes` raises the 1 MiB limit for the route. Up to 32 MiB are kept in memory, the rest goes to temporary files that are removed after the handler.
+- Check the file content, not the client's Content-Type: `http.DetectContentType`.
 
 ## Output
 
