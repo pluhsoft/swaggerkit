@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -42,7 +43,7 @@ func TestAPIKeyAuthPanicsOnBadLocation(t *testing.T) {
 func requireToken(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer t0k" {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			WriteError(w, Unauthorized("unknown token"))
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -56,7 +57,11 @@ func TestSecurityWithMiddleware(t *testing.T) {
 	Get(secured, "/public", func(ctx context.Context, _ struct{}) (string, error) { return "ok", nil }, Public())
 
 	// Authentication runs before validation: an invalid body without a token gets 401.
-	expect(t, do(t, api, request{method: "POST", target: "/s/hives", body: `{}`}), 401)
+	rec := do(t, api, request{method: "POST", target: "/s/hives", body: `{}`})
+	expect(t, rec, 401, `{"type":"about:blank","title":"Unauthorized","status":401,"detail":"unknown token"}`)
+	if rec.Header().Get("Content-Type") != "application/problem+json" {
+		t.Errorf("Content-Type = %q", rec.Header().Get("Content-Type"))
+	}
 	expect(t, do(t, api, request{method: "POST", target: "/s/hives", body: `{}`,
 		header: map[string]string{"Authorization": "Bearer t0k"}}), 422)
 	expect(t, do(t, api, request{method: "GET", target: "/s/public"}), 401) // middlewares still apply
@@ -86,4 +91,13 @@ func TestLogging(t *testing.T) {
 	silent := New(Info{Title: "Test"}, WithLogger(nil))
 	Get(silent, "/panic", func(ctx context.Context, _ none) (string, error) { panic("queen escaped") })
 	expect(t, do(t, silent, request{method: "GET", target: "/panic"}), 500)
+}
+
+func TestWriteErrorHidesInternalErrors(t *testing.T) {
+	rec := httptest.NewRecorder()
+	WriteError(rec, errors.New("database password is hunter2"))
+	expect(t, rec, 500, `"title":"Internal Server Error"`)
+	if strings.Contains(rec.Body.String(), "hunter2") {
+		t.Errorf("internal error leaked: %s", rec.Body)
+	}
 }

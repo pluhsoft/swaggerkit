@@ -195,11 +195,7 @@ func writeFile(w http.ResponseWriter, r *http.Request, f *File, status int) {
 // writeError sends err as problem details. Errors that are not *Error become
 // 500 without details; 5xx errors are logged with their cause.
 func (a *API) writeError(ctx context.Context, w http.ResponseWriter, err error) {
-	var e *Error
-	if !errors.As(err, &e) {
-		e = &Error{Status: http.StatusInternalServerError, Err: err}
-	}
-	p := e.problem()
+	p := toProblem(err)
 	if p.Status >= 500 {
 		attrs := []slog.Attr{slog.Int("status", p.Status)}
 		if r := Request(ctx); r != nil {
@@ -208,6 +204,26 @@ func (a *API) writeError(ctx context.Context, w http.ResponseWriter, err error) 
 		attrs = append(attrs, slog.Any("error", err))
 		a.logError(ctx, "swaggerkit: request failed", attrs...)
 	}
+	writeProblem(w, p)
+}
+
+// WriteError sends err as RFC 9457 problem details, in the same format as
+// handler errors. Use it in middlewares, for example to reject a request
+// with swaggerkit.Unauthorized("unknown token"). An error that is not an
+// *Error is sent as 500 without details; log it yourself.
+func WriteError(w http.ResponseWriter, err error) {
+	writeProblem(w, toProblem(err))
+}
+
+func toProblem(err error) *Error {
+	var e *Error
+	if !errors.As(err, &e) {
+		e = &Error{Status: http.StatusInternalServerError, Err: err}
+	}
+	return e.problem()
+}
+
+func writeProblem(w http.ResponseWriter, p *Error) {
 	body, merr := marshalJSON(p)
 	if merr != nil {
 		body = []byte(`{"type":"about:blank","title":"Internal Server Error","status":500}`)
