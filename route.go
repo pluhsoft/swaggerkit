@@ -34,6 +34,11 @@ type routeConfig struct {
 	middlewares []Middleware
 	errors      []int
 	produces    string
+	headers     []headerDoc
+}
+
+type headerDoc struct {
+	name, description string
 }
 
 // Summary sets the short summary of the operation.
@@ -90,6 +95,15 @@ func Errors(codes ...int) RouteOption {
 // e.g. "image/png". The default is "application/octet-stream".
 func Produces(contentType string) RouteOption {
 	return func(c *routeConfig) { c.produces = contentType }
+}
+
+// Header documents a header of the success response, e.g.
+// Header("X-Total-Count", "Number of items in all pages"). Set it in the
+// handler with ResponseHeader(ctx).Set.
+func Header(name, description string) RouteOption {
+	return func(c *routeConfig) {
+		c.headers = append(c.headers, headerDoc{http.CanonicalHeaderKey(name), description})
+	}
 }
 
 // route is a registered operation.

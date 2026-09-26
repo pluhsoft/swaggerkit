@@ -52,12 +52,13 @@ type call struct {
 	method, path, body, token string
 	wantStatus                int
 	wantBody                  string // substring
+	wantHeader                string // "Name: value"
 }
 
 func TestAPI(t *testing.T) {
 	api := newTestAPI()
 	calls := []call{
-		{method: "GET", path: "/api/v1/hives?limit=2", wantStatus: 200, wantBody: `"total":3`},
+		{method: "GET", path: "/api/v1/hives?limit=2", wantStatus: 200, wantBody: `"total":3`, wantHeader: "X-Total-Count: 3"},
 		{method: "GET", path: "/api/v1/hives?status=swarming", wantStatus: 200, wantBody: `"name":"Clover"`},
 		{method: "GET", path: "/api/v1/hives?status=sleeping", wantStatus: 422, wantBody: `"location":"query.status"`},
 		{method: "GET", path: "/api/v1/hives?limit=1000", wantStatus: 422, wantBody: `must be less than or equal to 100`},
@@ -97,6 +98,9 @@ func TestAPI(t *testing.T) {
 			api.ServeHTTP(rec, req)
 			if rec.Code != c.wantStatus {
 				t.Fatalf("status %d, want %d; body: %s", rec.Code, c.wantStatus, rec.Body)
+			}
+			if name, value, ok := strings.Cut(c.wantHeader, ": "); ok && rec.Header().Get(name) != value {
+				t.Fatalf("header %s = %q, want %q", name, rec.Header().Get(name), value)
 			}
 			if !strings.Contains(rec.Body.String(), c.wantBody) {
 				t.Fatalf("body %s does not contain %s", rec.Body, c.wantBody)

@@ -58,8 +58,14 @@ type requestBody struct {
 }
 
 type response struct {
-	Description string               `json:"description"`
-	Content     map[string]mediaType `json:"content,omitempty"`
+	Description string                  `json:"description"`
+	Headers     map[string]headerObject `json:"headers,omitempty"`
+	Content     map[string]mediaType    `json:"content,omitempty"`
+}
+
+type headerObject struct {
+	Description string  `json:"description,omitempty"`
+	Schema      *Schema `json:"schema"`
 }
 
 type mediaType struct {
@@ -207,6 +213,12 @@ func (a *API) operation(rt *route, problem string) *operation {
 			ct = "application/octet-stream"
 		}
 		success.Content = map[string]mediaType{ct: {&Schema{Type: "string", Format: "binary"}}}
+	}
+	for _, h := range rt.cfg.headers {
+		if success.Headers == nil {
+			success.Headers = map[string]headerObject{}
+		}
+		success.Headers[h.name] = headerObject{Description: h.description, Schema: &Schema{Type: "string"}}
 	}
 	op.Responses[strconv.Itoa(status)] = success
 

@@ -167,3 +167,24 @@ func TestLint(t *testing.T) {
 	}
 	_ = http.MethodGet
 }
+
+func TestResponseHeaders(t *testing.T) {
+	api, _ := newTestAPI()
+	g := api.Group("/g", Header("x-request-id", "Request ID"))
+	Get(g, "/hives", func(ctx context.Context, _ struct{}) ([]string, error) {
+		ResponseHeader(ctx).Set("X-Total-Count", "0")
+		return nil, nil
+	}, Header("X-Total-Count", "Number of hives"))
+
+	rec := do(t, api, request{method: "GET", target: "/g/hives"})
+	expect(t, rec, 200)
+	if rec.Header().Get("X-Total-Count") != "0" {
+		t.Errorf("header not set: %v", rec.Header())
+	}
+	doc, _ := api.OpenAPI()
+	for _, want := range []string{`"X-Request-Id": {`, `"description": "Request ID"`, `"X-Total-Count": {`, `"description": "Number of hives"`} {
+		if !bytes.Contains(doc, []byte(want)) {
+			t.Errorf("document does not contain %s", want)
+		}
+	}
+}

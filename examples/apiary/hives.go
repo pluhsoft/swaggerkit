@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -74,6 +75,7 @@ type ListHivesInput struct {
 // ListHives returns hives, newest last.
 func (a *Apiary) ListHives(ctx context.Context, in ListHivesInput) (Page[Hive], error) {
 	items, total := a.store.List(in.Status, in.Tag, in.Limit, in.Offset)
+	swaggerkit.ResponseHeader(ctx).Set("X-Total-Count", strconv.Itoa(total))
 	return Page[Hive]{Items: items, Total: total, Limit: in.Limit, Offset: in.Offset}, nil
 }
 

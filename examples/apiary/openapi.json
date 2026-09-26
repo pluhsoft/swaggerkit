@@ -84,6 +84,14 @@
         "responses": {
           "200": {
             "description": "OK",
+            "headers": {
+              "X-Total-Count": {
+                "description": "Number of hives in all pages",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
