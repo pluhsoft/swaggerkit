@@ -62,4 +62,6 @@ func (a *API) registerDocs() {
 		_, _ = w.Write(page.Bytes())
 	})
 	a.mux.Handle("GET "+base+"/openapi.json", a.OpenAPIHandler())
+	a.mux.Handle("GET "+base+"/openapi-3.0.json", a.DocumentHandler(FormatOpenAPI30))
+	a.mux.Handle("GET "+base+"/swagger.json", a.DocumentHandler(FormatSwagger20))
 }

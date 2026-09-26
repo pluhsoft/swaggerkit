@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -278,6 +279,10 @@ func (pp *paramPlan) set(a *API, field reflect.Value, raw []string) []FieldError
 	if len(errs) > 0 {
 		return errs
 	}
+	if setScalar(field, value) {
+		return nil
+	}
+	// time.Time, TextUnmarshaler types: let encoding/json apply its rules.
 	data, err := marshalJSON(value)
 	if err == nil {
 		err = json.Unmarshal(data, field.Addr().Interface())
@@ -286,6 +291,75 @@ func (pp *paramPlan) set(a *API, field reflect.Value, raw []string) []FieldError
 		return []FieldError{{loc, "has an invalid value"}}
 	}
 	return nil
+}
+
+// setScalar stores a validated value in a field of a plain kind (string,
+// number, bool, pointers and slices of them) without a JSON round trip.
+// It reports false for types that need encoding/json.
+func setScalar(field reflect.Value, value any) bool {
+	t := field.Type()
+	switch {
+	case t.Kind() == reflect.Pointer:
+		elem := reflect.New(t.Elem()).Elem()
+		if !setScalar(elem, value) {
+			return false
+		}
+		field.Set(elem.Addr())
+		return true
+	case t.Kind() == reflect.Slice && !isTextType(t):
+		list, ok := value.([]any)
+		if !ok {
+			return false
+		}
+		out := reflect.MakeSlice(t, len(list), len(list))
+		for i, v := range list {
+			if !setScalar(out.Index(i), v) {
+				return false
+			}
+		}
+		field.Set(out)
+		return true
+	case reflect.PointerTo(t).Implements(textUnmarshalerType) || t == timeType:
+		return false
+	}
+	switch v := value.(type) {
+	case string:
+		if t.Kind() != reflect.String {
+			return false
+		}
+		field.SetString(v)
+	case bool:
+		if t.Kind() != reflect.Bool {
+			return false
+		}
+		field.SetBool(v)
+	case json.Number:
+		switch t.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			n, err := strconv.ParseInt(v.String(), 10, t.Bits())
+			if err != nil {
+				return false
+			}
+			field.SetInt(n)
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+			n, err := strconv.ParseUint(v.String(), 10, t.Bits())
+			if err != nil {
+				return false
+			}
+			field.SetUint(n)
+		case reflect.Float32, reflect.Float64:
+			f, err := strconv.ParseFloat(v.String(), t.Bits())
+			if err != nil {
+				return false
+			}
+			field.SetFloat(f)
+		default:
+			return false
+		}
+	default:
+		return false
+	}
+	return true
 }
 
 // paramValue converts a raw string to a JSON value of the schema type.
@@ -322,7 +396,7 @@ func typeWord(s *Schema) string {
 
 // decode reads, validates and decodes the JSON body into target.
 func (b *bodyPlan) decode(a *API, w http.ResponseWriter, r *http.Request, target reflect.Value, limit int64) *Error {
-	data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, limit))
+	data, err := readBody(w, r, limit)
 	if err != nil {
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {
@@ -390,4 +464,15 @@ func jsonErrorText(err error) string {
 		return "unexpected end of input"
 	}
 	return "malformed input"
+}
+
+// readBody reads the body up to limit bytes, sizing the buffer from
+// Content-Length when the client sent it.
+func readBody(w http.ResponseWriter, r *http.Request, limit int64) ([]byte, error) {
+	var buf bytes.Buffer
+	if n := r.ContentLength; n > 0 && n <= limit {
+		buf.Grow(int(n) + 1) // +1 lets ReadFrom see EOF without growing
+	}
+	_, err := buf.ReadFrom(http.MaxBytesReader(w, r.Body, limit))
+	return buf.Bytes(), err
 }

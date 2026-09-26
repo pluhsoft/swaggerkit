@@ -63,7 +63,8 @@ type API struct {
 	middlewares []Middleware
 	routes      []*route
 	gen         *schemaGen
-	spec        []byte // cached OpenAPI document
+	spec        []byte            // cached OpenAPI 3.1 document
+	specs       map[Format][]byte // cached converted documents
 	root        *Group
 }
 
@@ -118,8 +119,8 @@ func WithSecurityScheme(name string, scheme SecurityScheme) Option {
 	}
 }
 
-// WithDocs serves Swagger UI at path and the OpenAPI document at
-// path+"/openapi.json".
+// WithDocs serves Swagger UI at path and the documents at path+"/openapi.json"
+// (OpenAPI 3.1), path+"/openapi-3.0.json" and path+"/swagger.json" (Swagger 2.0).
 func WithDocs(path string) Option {
 	return func(a *API) { a.docsPath = "/" + strings.Trim(path, "/") }
 }
@@ -136,6 +137,7 @@ func New(info Info, opts ...Option) *API {
 		securitySchemes: map[string]SecurityScheme{},
 		mux:             http.NewServeMux(),
 		gen:             newSchemaGen(),
+		specs:           map[Format][]byte{},
 	}
 	for _, opt := range opts {
 		opt(a)
