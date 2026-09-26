@@ -3,6 +3,7 @@
   "basePath": "/api/v1",
   "definitions": {
     "Harvest": {
+      "description": "Honey taken from a hive.",
       "properties": {
         "beekeeper": {
           "description": "Who harvested",
@@ -43,6 +44,7 @@
       "type": "object"
     },
     "Hive": {
+      "description": "A beehive in the apiary.",
       "properties": {
         "bees": {
           "description": "Number of bees living in the hive",
@@ -121,6 +123,7 @@
       "type": "object"
     },
     "HiveStatus": {
+      "description": "State of a bee colony.",
       "enum": [
         "active",
         "swarming",
@@ -130,6 +133,7 @@
       "type": "string"
     },
     "HiveUpdate": {
+      "description": "Changes to a hive. Missing fields stay unchanged.",
       "properties": {
         "name": {
           "description": "New name",
@@ -157,6 +161,7 @@
       "type": "object"
     },
     "Location": {
+      "description": "A point on the map.",
       "properties": {
         "lat": {
           "description": "Latitude",
@@ -182,6 +187,7 @@
       "type": "object"
     },
     "NewHive": {
+      "description": "Request to set up a hive.",
       "properties": {
         "location": {
           "allOf": [
@@ -226,6 +232,7 @@
       "type": "object"
     },
     "PageHive": {
+      "description": "A page of a list.",
       "properties": {
         "items": {
           "description": "Items on this page",
@@ -311,6 +318,7 @@
       "type": "object"
     },
     "Queen": {
+      "description": "Queen bee of a colony.",
       "properties": {
         "bornOn": {
           "description": "Date the queen hatched",
@@ -336,6 +344,7 @@
       "type": "object"
     },
     "Stats": {
+      "description": "Totals for the whole apiary.",
       "properties": {
         "bees": {
           "description": "Bees in all hives",
@@ -421,6 +430,12 @@
         "responses": {
           "200": {
             "description": "OK",
+            "headers": {
+              "X-Total-Count": {
+                "description": "Number of hives in all pages",
+                "type": "string"
+              }
+            },
             "schema": {
               "$ref": "#/definitions/PageHive"
             }
