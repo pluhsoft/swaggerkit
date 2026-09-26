@@ -29,6 +29,7 @@ Scope: validation and generation only. Authentication, CORS and access logs are 
 | `errors.go`           | `Error`, problem details                                  |
 | `security.go`         | security schemes for the document                         |
 | `openapi.go`, `docs.go` | OpenAPI 3.1 document types, Swagger UI                  |
+| `convert.go`          | OpenAPI 3.0 and Swagger 2.0 from the 3.1 document         |
 | `lint.go`             | `API.Lint`                                                |
 | `examples/apiary`     | example API, golden `openapi.json`                        |
 | `internal/release`    | release tool used by CI                                   |

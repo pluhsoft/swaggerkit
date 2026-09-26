@@ -5,7 +5,15 @@ nav_order: 4
 
 # OpenAPI
 
-The OpenAPI 3.1 document is built from registered routes and their Go types.
+The OpenAPI 3.1 document is built from registered routes and their Go types. Older formats are converted from it for tools that need them.
+
+| Format                        | Method / endpoint                                  |
+| ----------------------------- | -------------------------------------------------- |
+| OpenAPI 3.1                   | `api.OpenAPI()`, `/docs/openapi.json`              |
+| OpenAPI 3.0                   | `api.Document(swaggerkit.FormatOpenAPI30)`, `/docs/openapi-3.0.json` |
+| Swagger 2.0                   | `api.Document(swaggerkit.FormatSwagger20)`, `/docs/swagger.json` |
+
+Swagger 2.0 cannot express everything: cookie parameters are dropped, bearer and OpenID Connect become an `Authorization` header API key, a response keeps one schema, nullable becomes `x-nullable`.
 
 ## Serving
 
@@ -17,6 +25,8 @@ api := swaggerkit.New(info, swaggerkit.WithDocs("/docs"))
 | ------------------------- | ---------------- |
 | `/docs`                   | Swagger UI       |
 | `/docs/openapi.json`      | OpenAPI 3.1      |
+| `/docs/openapi-3.0.json`  | OpenAPI 3.0      |
+| `/docs/swagger.json`      | Swagger 2.0      |
 
 Swagger UI loads from jsDelivr with a pinned version and Subresource Integrity. Without internet access, or to serve the document elsewhere, mount `api.OpenAPIHandler()` and your own UI.
 

@@ -2,6 +2,7 @@
 //
 //	go run ./examples/apiary                          # serve on :8080, docs at /api/v1/docs
 //	go run ./examples/apiary -openapi openapi.json    # write the OpenAPI document and exit
+//	go run ./examples/apiary -openapi swagger.json -format swagger-2.0
 //	go run ./examples/apiary -lint                    # print API design hints and exit
 package main
 
@@ -19,7 +20,8 @@ import (
 
 func main() {
 	addr := flag.String("addr", ":8080", "listen address")
-	specFile := flag.String("openapi", "", "write the OpenAPI document to `file` and exit")
+	specFile := flag.String("openapi", "", "write the API document to `file` and exit")
+	format := flag.String("format", string(swaggerkit.FormatOpenAPI31), "document format: openapi-3.1, openapi-3.0 or swagger-2.0")
 	lint := flag.Bool("lint", false, "print API design hints and exit")
 	flag.Parse()
 
@@ -32,7 +34,7 @@ func main() {
 
 	switch {
 	case *specFile != "":
-		if err := writeSpec(api, *specFile); err != nil {
+		if err := writeSpec(api, *specFile, swaggerkit.Format(*format)); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
@@ -62,8 +64,8 @@ func main() {
 	}
 }
 
-func writeSpec(api *swaggerkit.API, path string) error {
-	doc, err := api.OpenAPI()
+func writeSpec(api *swaggerkit.API, path string, format swaggerkit.Format) error {
+	doc, err := api.Document(format)
 	if err != nil {
 		return err
 	}
