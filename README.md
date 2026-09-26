@@ -10,8 +10,8 @@ The documentation cannot drift from the code.
 - Path, query, header, cookie and JSON body binding
 - Validation from struct tags, RFC 9457 error responses
 - OpenAPI 3.1, built-in Swagger UI
-- Security schemes that are documented and enforced
-- CORS, `log/slog` logging, any `net/http` middleware
+- Security schemes in the document, any `net/http` middleware
+- Server errors logged with `log/slog`, or not at all
 - `Lint` hints that improve API design
 
 ## Install

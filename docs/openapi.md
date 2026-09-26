@@ -90,7 +90,7 @@ go run ./examples/apiary -lint
 | `verb-in-path`          | `/project/delete/{id}` instead of `DELETE /projects/{id}` |
 | `path-case`, `path-param-case` | `/Hives`, `{Project_ID}`                        |
 | `unsecured-write`       | write operation without security when schemes exist    |
-| `security-not-enforced` | scheme without a verify function                       |
+| `security-not-enforced` | `Security` without a middleware that checks it         |
 | `api-key-in-query`      | API keys that end up in logs                           |
 | `unbounded-string`, `unbounded-array`, `unbounded-map` | request input without `max` |
 | `post-status`           | POST that creates a resource and answers 200           |

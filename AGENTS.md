@@ -1,6 +1,7 @@
 # Guide for AI agents
 
 swaggerkit is a single Go package: typed `net/http` handlers, validation and OpenAPI generation from Go types.
+Scope: validation and generation only. Authentication, CORS and access logs are the user's middlewares.
 
 ## Rules
 
@@ -26,8 +27,7 @@ swaggerkit is a single Go package: typed `net/http` handlers, validation and Ope
 | `validate.go`         | JSON value validation                                     |
 | `formats.go`          | string formats                                            |
 | `errors.go`           | `Error`, problem details                                  |
-| `security.go`         | security schemes, authentication                          |
-| `middleware.go`       | `CORS`, `RequestLogger`                                   |
+| `security.go`         | security schemes for the document                         |
 | `openapi.go`, `docs.go` | OpenAPI 3.1 document types, Swagger UI                  |
 | `lint.go`             | `API.Lint`                                                |
 | `examples/apiary`     | example API, golden `openapi.json`                        |

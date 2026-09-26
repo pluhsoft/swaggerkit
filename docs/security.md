@@ -7,54 +7,42 @@ nav_order: 5
 
 ## Authentication
 
-Register a scheme with a verify function and require it on routes. swaggerkit documents the scheme and checks every request, so the documentation and the behavior match.
+swaggerkit documents authentication; your middleware checks it. Put both on the same group so they cannot drift apart.
 
 ```go
-verify := func(ctx context.Context, token string) (context.Context, error) {
-	user, err := users.ByToken(ctx, token)
-	if err != nil {
-		return nil, swaggerkit.Unauthorized("unknown token")
-	}
-	if user.Banned {
-		return nil, swaggerkit.Forbidden("account is blocked")
-	}
-	return context.WithValue(ctx, userKey{}, user), nil
-}
+api := swaggerkit.New(info, swaggerkit.WithSecurityScheme("jwt", swaggerkit.BearerAuth("JWT")))
 
-jwt := swaggerkit.BearerAuth(verify)
-jwt.BearerFormat = "JWT"
-
-api := swaggerkit.New(info, swaggerkit.WithSecurityScheme("jwt", jwt))
-
-keeper := api.Group("/hives", swaggerkit.Security("jwt"))
+keeper := api.Group("/hives", swaggerkit.Security("jwt"), swaggerkit.Middlewares(requireJWT))
 swaggerkit.Delete(keeper, "/{hiveId}", DeleteHive)
-swaggerkit.Get(keeper, "/{hiveId}", GetHive, swaggerkit.Public()) // no auth
 ```
 
-| Constructor                           | Credentials                          |
-| ------------------------------------- | ------------------------------------ |
-| `BearerAuth(verify)`                  | `Authorization: Bearer <token>`      |
-| `BasicAuth(verify)`                   | `Authorization: Basic …`, HTTPS only |
-| `APIKeyAuth("header", "X-API-Key", verify)` | header, `query` or `cookie`    |
-| `OpenIDConnectAuth(discoveryURL, verify)`   | bearer token, OIDC discovery in the document |
+| Constructor                        | Documents                                   |
+| ---------------------------------- | ------------------------------------------- |
+| `BearerAuth("JWT")`                | `Authorization: Bearer <token>`             |
+| `BasicAuth()`                      | `Authorization: Basic …`                    |
+| `APIKeyAuth("header", "X-API-Key")`| API key in a header, `query` or `cookie`    |
+| `OpenIDConnectAuth(discoveryURL)`  | OpenID Connect                              |
 
-- The context returned by verify reaches the handler.
-- An `*Error` from verify sets the status (403); any other error gives 401 without details.
-- `Security("a", "b")` accepts either scheme.
-- Authentication runs before the body is read.
-- With a nil verify function the scheme is only documented; `Lint` warns about it.
+- `Security("a", "b")` documents that either scheme is accepted; `Public()` removes an inherited requirement.
+- Routes with `Security` document a 401 response.
+- Middlewares run before validation, so unauthenticated requests never reach body parsing.
+- `Lint` warns about routes with `Security` but no middleware (`security-not-enforced`).
 - Compare secrets with `crypto/subtle.ConstantTimeCompare`.
 
-## CORS
+A middleware passes the user to the handler through the request context:
 
 ```go
-api.Use(swaggerkit.CORS(swaggerkit.CORSOptions{
-	AllowedOrigins:   []string{"https://app.example.com"},
-	AllowCredentials: true,
-}))
+func requireJWT(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, err := parseJWT(r.Header.Get("Authorization"))
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userKey{}, user)))
+	})
+}
 ```
-
-Add it with `api.Use` so preflight requests reach it. Defaults: methods GET, HEAD, POST, PUT, PATCH, DELETE; headers `Content-Type`, `Authorization`; preflight cache 10 minutes. `"*"` with credentials panics. Preflights with unknown origins, methods or headers get 403.
 
 ## Defaults
 
@@ -62,4 +50,4 @@ Add it with `api.Use` so preflight requests reach it. Defaults: methods GET, HEA
 - Unknown JSON fields are rejected.
 - Internal errors and panics are logged, never sent to clients. Validation errors do not echo values.
 - Responses carry `X-Content-Type-Options: nosniff`; files are sent as attachments unless `Inline`.
-- Set `ReadHeaderTimeout`, `ReadTimeout`, `WriteTimeout` and `IdleTimeout` on `http.Server`.
+- CORS, rate limits and timeouts belong to your middlewares and `http.Server`.

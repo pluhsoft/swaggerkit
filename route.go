@@ -61,8 +61,9 @@ func Hidden() RouteOption { return func(c *routeConfig) { c.hidden = true } }
 // Status sets the success status code. The default is 200, or 204 for [NoContent].
 func Status(code int) RouteOption { return func(c *routeConfig) { c.status = code } }
 
-// Security requires one of the named security schemes, registered with
-// [WithSecurityScheme]. Several names mean any of them is accepted.
+// Security documents that the route requires one of the named security
+// schemes, registered with [WithSecurityScheme]. Several names mean any of
+// them is accepted. Check credentials in a middleware passed with [Middlewares].
 func Security(schemes ...string) RouteOption {
 	return func(c *routeConfig) { c.security, c.public = slices.Clone(schemes), false }
 }
@@ -72,15 +73,15 @@ func Public() RouteOption {
 	return func(c *routeConfig) { c.security, c.public = nil, true }
 }
 
-// Middlewares adds middlewares for the route or group. They run after the
-// API middlewares and before authentication and request validation.
+// Middlewares adds middlewares for the route or group, e.g. authentication.
+// They run after the API middlewares and before request validation.
 func Middlewares(mw ...Middleware) RouteOption {
 	return func(c *routeConfig) { c.middlewares = append(c.middlewares, mw...) }
 }
 
 // Errors documents error status codes that the handler returns, e.g. 404, 409.
-// 401 for secured routes, 422 for routes with input and a default error
-// response are documented automatically.
+// 401 for routes with [Security], 422 for routes with input and a default
+// error response are documented automatically.
 func Errors(codes ...int) RouteOption {
 	return func(c *routeConfig) { c.errors = append(c.errors, codes...) }
 }

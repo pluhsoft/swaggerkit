@@ -2,9 +2,7 @@ package swaggerkit
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"reflect"
 	"strings"
@@ -23,40 +21,6 @@ func TestPatchAndSummary(t *testing.T) {
 	expect(t, do(t, api, request{method: "PATCH", target: "/hives/1", body: `{"name":"Linden"}`}), 200, "Linden")
 	if got := api.handlerName(t, "/hives/{id}"); !strings.HasSuffix(got, "|Rename") {
 		t.Errorf("summary = %s", got)
-	}
-}
-
-func TestRequestLoggerKeepsResponseController(t *testing.T) {
-	var flushed bool
-	h := RequestLogger(slog.New(slog.DiscardHandler))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusAccepted)
-		w.WriteHeader(http.StatusOK) // superfluous, ignored
-		flushed = http.NewResponseController(w).Flush() == nil
-	}))
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
-	if !flushed || rec.Code != http.StatusAccepted {
-		t.Errorf("flushed=%v code=%d", flushed, rec.Code)
-	}
-}
-
-func TestSecuritySchemeDocuments(t *testing.T) {
-	tests := []struct {
-		scheme SecurityScheme
-		want   string
-	}{
-		{BearerAuth(nil), `{"type":"http","scheme":"bearer"}`},
-		{func() SecurityScheme { s := BearerAuth(nil); s.BearerFormat, s.Description = "JWT", "d"; return s }(),
-			`{"type":"http","description":"d","scheme":"bearer","bearerFormat":"JWT"}`},
-		{BasicAuth(nil), `{"type":"http","scheme":"basic"}`},
-		{APIKeyAuth("cookie", "sid", nil), `{"type":"apiKey","in":"cookie","name":"sid"}`},
-		{OpenIDConnectAuth("https://id.example", nil), `{"type":"openIdConnect","openIdConnectUrl":"https://id.example"}`},
-	}
-	for _, tt := range tests {
-		b, _ := marshalJSON(tt.scheme)
-		if string(b) != tt.want {
-			t.Errorf("got %s, want %s", b, tt.want)
-		}
 	}
 }
 

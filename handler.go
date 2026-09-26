@@ -57,7 +57,6 @@ type contextKey int
 const (
 	requestKey contextKey = iota
 	writerKey
-	logAttrsKey
 )
 
 // Request returns the HTTP request of a handler context.
@@ -75,22 +74,15 @@ func ResponseHeader(ctx context.Context) http.Header {
 	return http.Header{}
 }
 
-// AppendLogAttrs returns a context whose swaggerkit log records include attrs,
-// e.g. a request ID set by a middleware.
-func AppendLogAttrs(ctx context.Context, attrs ...slog.Attr) context.Context {
-	prev, _ := ctx.Value(logAttrsKey).([]slog.Attr)
-	return context.WithValue(ctx, logAttrsKey, append(append([]slog.Attr{}, prev...), attrs...))
-}
-
-func (a *API) log(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr) {
-	if !a.logger.Enabled(ctx, level) {
-		return
+// logError reports a failure that the client only sees as 500:
+// a handler error, a panic or a response that cannot be encoded.
+func (a *API) logError(ctx context.Context, msg string, attrs ...slog.Attr) {
+	if a.logger != nil {
+		a.logger.LogAttrs(ctx, slog.LevelError, msg, attrs...)
 	}
-	extra, _ := ctx.Value(logAttrsKey).([]slog.Attr)
-	a.logger.LogAttrs(ctx, level, msg, append(extra, attrs...)...)
 }
 
-// serve runs a route: authentication, input binding, the handler and the response.
+// serve runs a route: input binding, the handler and the response.
 func serve[In, Out any](a *API, rt *route, w http.ResponseWriter, r *http.Request, h HandlerFunc[In, Out]) {
 	ctx := context.WithValue(r.Context(), requestKey, r)
 	ctx = context.WithValue(ctx, writerKey, w)
@@ -99,23 +91,13 @@ func serve[In, Out any](a *API, rt *route, w http.ResponseWriter, r *http.Reques
 			if rec == http.ErrAbortHandler {
 				panic(rec)
 			}
-			a.log(ctx, slog.LevelError, "swaggerkit: handler panicked",
+			a.logError(ctx, "swaggerkit: handler panicked",
 				slog.String("operation", rt.operationID),
 				slog.Any("panic", rec),
 				slog.String("stack", string(debug.Stack())))
 			a.writeError(ctx, w, &Error{Status: http.StatusInternalServerError, Err: fmt.Errorf("panic: %v", rec)})
 		}
 	}()
-
-	if len(rt.cfg.security) > 0 {
-		authCtx, err := a.authenticate(ctx, r, rt.cfg.security)
-		if err != nil {
-			a.writeError(ctx, w, err)
-			return
-		}
-		ctx = authCtx
-		r = r.WithContext(ctx)
-	}
 
 	in, verr := rt.input.bind(a, w, r)
 	if verr != nil {
@@ -224,9 +206,7 @@ func (a *API) writeError(ctx context.Context, w http.ResponseWriter, err error) 
 			attrs = append(attrs, slog.String("method", r.Method), slog.String("path", r.URL.Path))
 		}
 		attrs = append(attrs, slog.Any("error", err))
-		a.log(ctx, slog.LevelError, "swaggerkit: request failed", attrs...)
-	} else {
-		a.log(ctx, slog.LevelDebug, "swaggerkit: request rejected", slog.Int("status", p.Status), slog.String("detail", p.Detail))
+		a.logError(ctx, "swaggerkit: request failed", attrs...)
 	}
 	body, merr := marshalJSON(p)
 	if merr != nil {

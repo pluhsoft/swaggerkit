@@ -86,7 +86,6 @@ Any other error is logged and answered with 500 without details. Panics are reco
 | Status | When                                    |
 | ------ | --------------------------------------- |
 | 400    | malformed JSON                          |
-| 401/403| authentication failed                   |
 | 413    | body larger than `WithMaxBodyBytes` (1 MiB) |
 | 415    | body is not `application/json`          |
 | 422    | validation failed, `errors` lists each value |
@@ -102,7 +101,7 @@ Document the errors a handler returns: `swaggerkit.Errors(http.StatusNotFound, h
 | `Tags`                          | groups operations                        |
 | `Status`                        | success status                           |
 | `Errors`, `Produces`            | documented responses                     |
-| `Security`, `Public`            | [authentication](security)               |
+| `Security`, `Public`            | documented [authentication](security)    |
 | `Middlewares`                   | [middlewares](middleware) for the route  |
 | `Deprecated`, `Hidden`          | mark or hide in the documentation        |
 

@@ -54,10 +54,6 @@ func (a *API) Lint() []Issue {
 	}
 	for _, name := range a.schemeOrder {
 		s := a.securitySchemes[name]
-		if s.verify == nil {
-			add(SeverityWarning, "security-not-enforced", "securitySchemes."+name,
-				"scheme has no verify function; make sure a middleware enforces it")
-		}
 		if s.Type == "apiKey" && s.In == inQuery {
 			add(SeverityWarning, "api-key-in-query", "securitySchemes."+name,
 				"API keys in query strings end up in logs and browser history; use a header")
@@ -84,6 +80,10 @@ func (a *API) Lint() []Issue {
 				add(SeverityWarning, "verb-in-path", loc,
 					"path segment %q is a verb; express the action with the HTTP method, e.g. DELETE /projects/{id}", seg)
 			}
+		}
+		if len(rt.cfg.security) > 0 && len(rt.cfg.middlewares) == 0 && len(a.middlewares) == 0 {
+			add(SeverityWarning, "security-not-enforced", loc,
+				"Security only documents authentication; add the middleware that checks it with Middlewares")
 		}
 		if len(rt.cfg.tags) == 0 {
 			add(SeverityInfo, "operation-tags", loc, "add Tags to group the operation in the documentation")

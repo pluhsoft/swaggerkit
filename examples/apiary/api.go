@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"crypto/subtle"
+	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/pluhsoft/swaggerkit"
 )
@@ -22,14 +24,27 @@ func BeekeeperFrom(ctx context.Context) string {
 	return name
 }
 
+// requireBeekeeper checks the bearer token. It is an ordinary net/http
+// middleware; swaggerkit only documents the scheme.
+func requireBeekeeper(token string) swaggerkit.Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			got, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+			if !ok || subtle.ConstantTimeCompare([]byte(got), []byte(token)) != 1 {
+				w.Header().Set("WWW-Authenticate", "Bearer")
+				w.Header().Set("Content-Type", "application/problem+json")
+				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = io.WriteString(w, `{"type":"about:blank","title":"Unauthorized","status":401,"detail":"unknown token"}`)
+				return
+			}
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), beekeeperKey{}, "beekeeper")))
+		})
+	}
+}
+
 // NewAPI wires the routes. token is the bearer token of the beekeeper.
 func NewAPI(store *Store, token string, logger *slog.Logger) *swaggerkit.API {
-	bearer := swaggerkit.BearerAuth(func(ctx context.Context, got string) (context.Context, error) {
-		if subtle.ConstantTimeCompare([]byte(got), []byte(token)) != 1 {
-			return nil, swaggerkit.Unauthorized("unknown token")
-		}
-		return context.WithValue(ctx, beekeeperKey{}, "beekeeper"), nil
-	})
+	bearer := swaggerkit.BearerAuth("")
 	bearer.Description = "Beekeeper token. The demo token is `beekeeper`."
 
 	api := swaggerkit.New(swaggerkit.Info{
@@ -46,11 +61,6 @@ func NewAPI(store *Store, token string, logger *slog.Logger) *swaggerkit.API {
 		swaggerkit.WithTag("honey", "Honey harvests"),
 		swaggerkit.WithTag("apiary", "The apiary as a whole"),
 	)
-	api.Use(
-		swaggerkit.RequestLogger(logger),
-		swaggerkit.CORS(swaggerkit.CORSOptions{AllowedOrigins: []string{"http://localhost:3000"}}),
-	)
-
 	a := &Apiary{store: store}
 	hives := api.Group("/hives", swaggerkit.Tags("hives"))
 	swaggerkit.Get(hives, "", a.ListHives)
@@ -61,7 +71,7 @@ func NewAPI(store *Store, token string, logger *slog.Logger) *swaggerkit.API {
 		swaggerkit.Errors(http.StatusNotFound))
 
 	// Changes need the beekeeper token.
-	keeper := hives.Group("", swaggerkit.Security("beekeeper"))
+	keeper := hives.Group("", swaggerkit.Security("beekeeper"), swaggerkit.Middlewares(requireBeekeeper(token)))
 	swaggerkit.Post(keeper, "", a.CreateHive, swaggerkit.Status(http.StatusCreated))
 	swaggerkit.Patch(keeper, "/{hiveId}", a.UpdateHive, swaggerkit.Errors(http.StatusNotFound))
 	swaggerkit.Delete(keeper, "/{hiveId}", a.DeleteHive, swaggerkit.Errors(http.StatusNotFound))

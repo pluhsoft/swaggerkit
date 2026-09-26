@@ -93,16 +93,20 @@ func ExampleAPI_Lint() {
 	// info: POST /hives/delete/{hiveId}: add Tags to group the operation in the documentation (operation-tags)
 }
 
+// Security documents the scheme; your middleware checks the credentials.
 func ExampleBearerAuth() {
-	verify := func(ctx context.Context, token string) (context.Context, error) {
-		if token != "beekeeper" {
-			return nil, swaggerkit.Unauthorized("unknown token")
-		}
-		return ctx, nil
+	requireToken := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("Authorization") != "Bearer beekeeper" {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
 	}
 	api := swaggerkit.New(swaggerkit.Info{Title: "Apiary", Version: "1.0.0"},
-		swaggerkit.WithSecurityScheme("beekeeper", swaggerkit.BearerAuth(verify)))
-	keeper := api.Group("/hives", swaggerkit.Security("beekeeper"))
+		swaggerkit.WithSecurityScheme("beekeeper", swaggerkit.BearerAuth("")))
+	keeper := api.Group("/hives", swaggerkit.Security("beekeeper"), swaggerkit.Middlewares(requireToken))
 	swaggerkit.Delete(keeper, "/{hiveId}", func(ctx context.Context, in GetHiveInput) (swaggerkit.NoContent, error) {
 		return swaggerkit.NoContent{}, nil
 	})

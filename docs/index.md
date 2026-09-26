@@ -66,16 +66,15 @@ func main() {
 ## What happens on a request
 
 1. Middlewares added with `api.Use`, then group and route middlewares.
-2. Authentication, if the route has [security](security).
-3. Parameters and body are parsed and [validated](validation). Invalid input gets `422` with every problem listed; the handler is not called.
-4. The handler runs. Its result is encoded as JSON, its error as [problem details](handlers#errors).
+2. Parameters and body are parsed and [validated](validation). Invalid input gets `422` with every problem listed; the handler is not called.
+3. The handler runs. Its result is encoded as JSON, its error as [problem details](handlers#errors).
 
 ## Next
 
 - [Handlers](handlers): inputs, outputs, errors
 - [Validation](validation): tags and rules
 - [OpenAPI](openapi): documents, Swagger UI, generation, lint
-- [Security](security): authentication, CORS
+- [Security](security): documented authentication, safe defaults
 - [Middleware and logging](middleware)
 - [Migration](migration) from gorilla/mux, chi, gin, echo, swaggo
 - [Example API](demo/) generated from [`examples/apiary`](https://github.com/pluhsoft/swaggerkit/tree/main/examples/apiary)

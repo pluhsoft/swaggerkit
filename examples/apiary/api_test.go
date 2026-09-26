@@ -6,7 +6,6 @@ import (
 	"flag"
 	"io"
 	"log/slog"
-	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -109,17 +108,5 @@ func TestAPI(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestCORSPreflight(t *testing.T) {
-	req := httptest.NewRequest(http.MethodOptions, "/api/v1/hives", nil)
-	req.Header.Set("Origin", "http://localhost:3000")
-	req.Header.Set("Access-Control-Request-Method", "POST")
-	req.Header.Set("Access-Control-Request-Headers", "authorization, content-type")
-	rec := httptest.NewRecorder()
-	newTestAPI().ServeHTTP(rec, req)
-	if rec.Code != http.StatusNoContent || rec.Header().Get("Access-Control-Allow-Origin") != "http://localhost:3000" {
-		t.Fatalf("preflight: %d %v", rec.Code, rec.Header())
 	}
 }

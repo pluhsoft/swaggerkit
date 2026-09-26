@@ -15,7 +15,7 @@ type Problem struct {
 
 func TestOpenAPIDocument(t *testing.T) {
 	api, _ := newTestAPI(
-		WithSecurityScheme("jwt", BearerAuth(nil)),
+		WithSecurityScheme("jwt", BearerAuth("")),
 		WithTag("hives", "Beehives"),
 	)
 	api.info.Description = "Bees"
@@ -111,7 +111,7 @@ func TestOpenAPIHandler(t *testing.T) {
 }
 
 func TestLint(t *testing.T) {
-	api := New(Info{}, WithSecurityScheme("key", APIKeyAuth("query", "key", nil)))
+	api := New(Info{}, WithSecurityScheme("key", APIKeyAuth("query", "key")))
 	type none struct{}
 	type idIn struct {
 		ID int `path:"Project_ID"`
@@ -143,7 +143,7 @@ func TestLint(t *testing.T) {
 	for _, want := range []string{
 		"info-title info",
 		"info-version info",
-		"security-not-enforced securitySchemes.key",
+		"security-not-enforced DELETE /hives/{id}",
 		"api-key-in-query securitySchemes.key",
 		"path-param-case POST /project/delete/{Project_ID}",
 		"verb-in-path POST /project/delete/{Project_ID}",

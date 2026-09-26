@@ -82,9 +82,10 @@ func WithBasePath(prefix string) Option {
 	return func(a *API) { a.basePath = "/" + strings.Trim(prefix, "/") }
 }
 
-// WithLogger sets the logger. The default is slog.Default().
-// Log records use the request context, so a slog.Handler can add request
-// fields; see also [AppendLogAttrs].
+// WithLogger sets where server errors are logged: handler errors that become
+// 500, and panics. Nothing else is logged. The default is slog.Default();
+// nil turns logging off. Records carry the request context, so a
+// slog.Handler can add request fields such as a request ID.
 func WithLogger(l *slog.Logger) Option {
 	return func(a *API) { a.logger = l }
 }
@@ -106,8 +107,8 @@ func WithTag(name, description string) Option {
 	return func(a *API) { a.tags = append(a.tags, docTag{name, description}) }
 }
 
-// WithSecurityScheme registers a security scheme. Routes require it with
-// the [Security] option.
+// WithSecurityScheme registers a security scheme for the OpenAPI document.
+// Routes require it with the [Security] option.
 func WithSecurityScheme(name string, scheme SecurityScheme) Option {
 	return func(a *API) {
 		if _, ok := a.securitySchemes[name]; !ok {

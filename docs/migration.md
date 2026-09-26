@@ -54,10 +54,10 @@ swaggerkit.Patch(projects, "/{id}", UpdateProject)
 | Go field names as parameter names        | `path:"id"`, `query:"limit"`                      |
 | `validate:"required"`, `min:"1"`, `email:"true"` | `validate:"required,min=1,email"`         |
 | enums parsed from source files           | `Enum()` method on the type                       |
-| auth detected by middleware name         | `WithSecurityScheme` + `Security`                 |
-| `ResponseCORSAllowed` per route          | `api.Use(swaggerkit.CORS(…))`                     |
+| auth detected by middleware name         | `Security` + your auth middleware in `Middlewares` |
+| `ResponseCORSAllowed` per route          | any CORS middleware in `api.Use`, e.g. rs/cors    |
 | env vars `SWAGGER_*`                     | options: `WithMaxBodyBytes`, `WithUnknownFields`  |
-| `logrus.Entry`                           | `WithLogger(*slog.Logger)`                        |
+| `logrus.Entry`                           | `WithLogger(*slog.Logger)` or `nil`               |
 | `GenerateSwaggerJSON` writes a file      | `api.WriteOpenAPI` or `WithDocs`                  |
 | actions in paths: `POST /project/delete/{Id}` | methods: `DELETE /projects/{id}` (see `Lint`) |
 
