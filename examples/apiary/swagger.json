@@ -469,6 +469,12 @@
         "responses": {
           "200": {
             "description": "OK",
+            "headers": {
+              "X-Total-Count": {
+                "description": "Number of hives in all pages",
+                "type": "string"
+              }
+            },
             "schema": {
               "$ref": "#/definitions/PageHive"
             }

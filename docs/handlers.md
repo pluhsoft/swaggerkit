@@ -135,7 +135,7 @@ Document the errors a handler returns: `swaggerkit.Errors(http.StatusNotFound, h
 | `OperationID`                   | defaults to `listHives`; must be unique  |
 | `Tags`                          | groups operations                        |
 | `Status`, `Statuses`            | success status; more statuses for `SetStatus` |
-| `Errors`, `Produces`            | documented responses                     |
+| `Errors`, `Produces`, `Header`  | documented responses and headers         |
 | `Security`, `Public`            | documented [authentication](security)    |
 | `Middlewares`                   | [middlewares](middleware) for the route  |
 | `Deprecated`, `Hidden`          | mark or hide in the documentation        |
@@ -151,5 +151,7 @@ swaggerkit.Delete(keeper, "/{hiveId}", DeleteHive)
 
 ```go
 r := swaggerkit.Request(ctx)                        // *http.Request
-swaggerkit.ResponseHeader(ctx).Set("X-Total", "42") // response headers
+swaggerkit.ResponseHeader(ctx).Set("X-Total-Count", "42") // response headers
 ```
+
+Document response headers on the route: `swaggerkit.Header("X-Total-Count", "Number of items in all pages")`.

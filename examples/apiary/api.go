@@ -61,7 +61,7 @@ func NewAPI(store *Store, token string, logger *slog.Logger) *swaggerkit.API {
 	)
 	a := &Apiary{store: store, photos: photos{byHive: map[int64]photo{}}}
 	hives := api.Group("/hives", swaggerkit.Tags("hives"))
-	swaggerkit.Get(hives, "", a.ListHives)
+	swaggerkit.Get(hives, "", a.ListHives, swaggerkit.Header("X-Total-Count", "Number of hives in all pages"))
 	swaggerkit.Get(hives, "/{hiveId}", a.GetHive, swaggerkit.Errors(http.StatusNotFound))
 	swaggerkit.Get(hives, "/{hiveId}/label", a.HiveLabel,
 		swaggerkit.Summary("Print a hive label"),
