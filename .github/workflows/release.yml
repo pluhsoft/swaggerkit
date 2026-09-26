@@ -1,0 +1,104 @@
+# Releases the module from main: tag vX.Y.Z, GitHub release, proxy.golang.org.
+# The version is the newest section of CHANGELOG.md.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  release:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the tag and the GitHub release
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+
+      - name: Read version
+        id: version
+        run: |
+          if ! version=$(go run ./internal/release current); then
+            echo "::notice::CHANGELOG.md has no released version yet."
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if gh release view "v$version" > /dev/null 2>&1; then
+            echo "::notice::v$version is already released."
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Create tag and GitHub release
+        if: steps.version.outputs.released == 'false'
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          go run ./internal/release notes "$version" > notes.md
+          gh release create "v$version" --target "$GITHUB_SHA" --title "v$version" --notes-file notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Publish to proxy.golang.org
+        if: steps.version.outputs.released == 'false'
+        run: |
+          module=$(go list -m)
+          for attempt in 1 2 3 4 5; do
+            if GOPROXY=https://proxy.golang.org GOFLAGS=-mod=mod go list -m "$module@v${{ steps.version.outputs.version }}"; then
+              echo "::notice::https://pkg.go.dev/$module@v${{ steps.version.outputs.version }}"
+              exit 0
+            fi
+            sleep $((attempt * 15))
+          done
+          echo "::warning::proxy.golang.org has not picked up the tag yet; it will on the first go get."
+
+  backmerge:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Open backmerge pull request main → develop
+        run: |
+          if [ "$(git rev-list --count origin/develop..origin/main)" -eq 0 ]; then
+            echo "develop already contains main."
+            exit 0
+          fi
+          existing=$(gh pr list --base develop --head main --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            echo "Backmerge pull request #$existing is already open."
+            exit 0
+          fi
+          gh pr create --base develop --head main \
+            --title "chore: backmerge main into develop" \
+            --body "Automatic backmerge after a release. Merge with a **merge commit** (not squash)."
+        env:
+          GH_TOKEN: ${{ github.token }}

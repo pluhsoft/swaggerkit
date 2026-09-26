@@ -1,0 +1,11 @@
+title: swaggerkit
+description: Typed HTTP handlers, validation and OpenAPI for Go
+remote_theme: just-the-docs/just-the-docs@v0.12.0
+plugins:
+  - jekyll-remote-theme
+search_enabled: true
+aux_links:
+  GitHub: https://github.com/pluhsoft/swaggerkit
+  pkg.go.dev: https://pkg.go.dev/github.com/pluhsoft/swaggerkit
+aux_links_new_tab: true
+footer_content: MIT License
