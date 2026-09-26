@@ -152,10 +152,34 @@ func (g *schemaGen) component(t reflect.Type, build func(*Schema) *Schema) *Sche
 	g.names[t] = name
 	s := &Schema{}
 	g.components[name] = s
-	if built := build(s); built != s {
+	built := build(s)
+	if built != s {
 		g.components[name] = built
 	}
+	if built.Description == "" {
+		built.Description = typeDoc(t)
+	}
 	return &Schema{Ref: name}
+}
+
+// Documented is implemented by types that describe themselves in the
+// OpenAPI document:
+//
+//	func (Hive) Doc() string { return "A beehive in the apiary." }
+type Documented interface {
+	Doc() string
+}
+
+var documentedType = reflect.TypeFor[Documented]()
+
+func typeDoc(t reflect.Type) string {
+	switch {
+	case t.Implements(documentedType):
+		return reflect.Zero(t).Interface().(Documented).Doc()
+	case reflect.PointerTo(t).Implements(documentedType):
+		return reflect.New(t).Interface().(Documented).Doc()
+	}
+	return ""
 }
 
 func (g *schemaGen) nameFor(t reflect.Type) string {

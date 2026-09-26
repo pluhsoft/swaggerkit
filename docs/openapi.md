@@ -97,7 +97,7 @@ go run ./examples/apiary -lint
 | `array-response`        | top-level array responses that cannot get pagination later |
 | `delete-body`           | DELETE with a body                                     |
 | `untyped-value`         | `any` fields and custom `MarshalJSON` without a schema |
-| `operation-tags`, `field-doc` | missing tags and field descriptions              |
+| `operation-tags`, `type-doc`, `field-doc` | missing tags, type and field descriptions |
 | `info-title`, `info-version` | incomplete `Info`                                 |
 
 Fail CI on errors or on any issue, as you prefer:
