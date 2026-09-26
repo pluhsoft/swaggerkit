@@ -38,6 +38,7 @@ go vet ./...
 go run honnef.co/go/tools/cmd/staticcheck@v0.8.1 ./...
 go test -race ./...            # library coverage must stay ≥ 90%
 go test ./examples/apiary -run TestOpenAPI -update   # after API changes in the example
+go test -run '^$' -bench . .   # before and after changes in the request path
 ```
 
 CI (`verify`) also runs `go mod tidy -diff`, `govulncheck` and tests on Go 1.24, oldstable and stable.

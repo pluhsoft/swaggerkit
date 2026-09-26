@@ -20,25 +20,32 @@ func newTestAPI() *swaggerkit.API {
 	return NewAPI(NewStore(), "beekeeper", slog.New(slog.NewTextHandler(io.Discard, nil)))
 }
 
-// TestOpenAPI keeps openapi.json in sync with the code:
+// TestOpenAPI keeps the committed documents in sync with the code:
 //
 //	go test ./examples/apiary -run TestOpenAPI -update
 func TestOpenAPI(t *testing.T) {
-	doc, err := newTestAPI().OpenAPI()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if *update {
-		if err := os.WriteFile("openapi.json", doc, 0o644); err != nil {
+	api := newTestAPI()
+	for file, format := range map[string]swaggerkit.Format{
+		"openapi.json":     swaggerkit.FormatOpenAPI31,
+		"openapi-3.0.json": swaggerkit.FormatOpenAPI30,
+		"swagger.json":     swaggerkit.FormatSwagger20,
+	} {
+		doc, err := api.Document(format)
+		if err != nil {
 			t.Fatal(err)
 		}
-	}
-	want, err := os.ReadFile("openapi.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(doc, want) {
-		t.Error("openapi.json is outdated; run: go test ./examples/apiary -run TestOpenAPI -update")
+		if *update {
+			if err := os.WriteFile(file, doc, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		want, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(doc, want) {
+			t.Errorf("%s is outdated; run: go test ./examples/apiary -run TestOpenAPI -update", file)
+		}
 	}
 }
 

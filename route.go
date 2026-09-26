@@ -233,6 +233,7 @@ func Handle[In, Out any](r Router, method, path string, h HandlerFunc[In, Out], 
 	a.mux.Handle(method+" "+muxPath, handler)
 	a.routes = append(a.routes, rt)
 	a.spec = nil
+	clear(a.specs)
 }
 
 // withSchemaErrors converts schema errors into panics that name the route.
