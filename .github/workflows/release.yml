@@ -66,6 +66,8 @@ jobs:
         if: steps.version.outputs.released == 'false'
         run: |
           module=$(go list -m)
+          # The proxy caches "not found" for a while; give GitHub time to serve the new tag first.
+          sleep 60
           for attempt in 1 2 3 4 5; do
             if GOPROXY=https://proxy.golang.org GOFLAGS=-mod=mod go list -m "$module@v${{ steps.version.outputs.version }}"; then
               echo "::notice::https://pkg.go.dev/$module@v${{ steps.version.outputs.version }}"
