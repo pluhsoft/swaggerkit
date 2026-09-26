@@ -83,6 +83,8 @@ return Hive{}, &swaggerkit.Error{Status: 503, Detail: "try later", Err: err} // 
 
 Any other error is logged and answered with 500 without details. Panics are recovered the same way.
 
+Middlewares send the same format with `swaggerkit.WriteError(w, err)`.
+
 | Status | When                                    |
 | ------ | --------------------------------------- |
 | 400    | malformed JSON                          |
