@@ -738,6 +738,7 @@
     "schemas": {
       "Harvest": {
         "type": "object",
+        "description": "Honey taken from a hive.",
         "properties": {
           "beekeeper": {
             "type": "string",
@@ -786,6 +787,7 @@
       },
       "Hive": {
         "type": "object",
+        "description": "A beehive in the apiary.",
         "properties": {
           "bees": {
             "type": "integer",
@@ -867,10 +869,12 @@
           "swarming",
           "dormant",
           "empty"
-        ]
+        ],
+        "description": "State of a bee colony."
       },
       "HiveUpdate": {
         "type": "object",
+        "description": "Changes to a hive. Missing fields stay unchanged.",
         "properties": {
           "name": {
             "type": "string",
@@ -890,6 +894,7 @@
       },
       "Location": {
         "type": "object",
+        "description": "A point on the map.",
         "properties": {
           "lat": {
             "type": "number",
@@ -919,6 +924,7 @@
       },
       "NewHive": {
         "type": "object",
+        "description": "Request to set up a hive.",
         "properties": {
           "location": {
             "$ref": "#/components/schemas/Location",
@@ -957,6 +963,7 @@
       },
       "PageHive": {
         "type": "object",
+        "description": "A page of a list.",
         "properties": {
           "items": {
             "type": "array",
@@ -1060,6 +1067,7 @@
       },
       "Queen": {
         "type": "object",
+        "description": "Queen bee of a colony.",
         "properties": {
           "bornOn": {
             "type": "string",
@@ -1089,6 +1097,7 @@
       },
       "Stats": {
         "type": "object",
+        "description": "Totals for the whole apiary.",
         "properties": {
           "bees": {
             "type": "integer",

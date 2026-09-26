@@ -167,3 +167,18 @@ func TestLint(t *testing.T) {
 	}
 	_ = http.MethodGet
 }
+
+func TestLintTypeDoc(t *testing.T) {
+	api := New(Info{Title: "T", Version: "1"})
+	Get(api, "/a", func(ctx context.Context, _ struct{}) (hive, error) { return hive{}, nil }, Tags("t"))
+	Get(api, "/b", func(ctx context.Context, _ struct{}) (documentedHive, error) { return documentedHive{}, nil }, Tags("t"))
+	var rules []string
+	for _, issue := range api.Lint() {
+		if issue.Rule == "type-doc" {
+			rules = append(rules, issue.Location)
+		}
+	}
+	if strings.Join(rules, ",") != "hive" {
+		t.Errorf("type-doc issues for %v, want [hive]", rules)
+	}
+}

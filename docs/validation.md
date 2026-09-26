@@ -79,6 +79,14 @@ func (HiveStatus) Enum() []HiveStatus { return []HiveStatus{StatusActive, Status
 
 For a one-off list use `validate:"oneof=active empty"`.
 
+## Type descriptions
+
+A `Doc` method describes the type as a whole (field descriptions come from `doc` tags):
+
+```go
+func (Hive) Doc() string { return "A beehive in the apiary." }
+```
+
 ## Custom types
 
 Types with `UnmarshalText`/`MarshalText` are strings. For anything else implement `swaggerkit.SchemaProvider`:
