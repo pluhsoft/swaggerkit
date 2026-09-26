@@ -19,9 +19,10 @@ Scope: validation and generation only. Authentication, CORS and access logs are 
 | `api.go`              | `API`, `New`, options, groups                             |
 | `route.go`            | `Handle`/`Get`/…, route options, naming                   |
 | `bind.go`             | input analysis, parameter and body binding                |
+| `form.go`             | form fields and file uploads                              |
 | `handler.go`          | request pipeline, outputs, context helpers                |
 | `schema.go`           | `Schema` and its JSON form                                |
-| `schemagen.go`        | Go type → schema, components, enums                       |
+| `schemagen.go`        | Go type → schema, components, enums, `Doc()`              |
 | `fields.go`           | encoding/json field rules                                 |
 | `tags.go`             | `validate`, `doc`, `example`, `default`, `pattern` tags   |
 | `validate.go`         | JSON value validation                                     |
@@ -29,6 +30,7 @@ Scope: validation and generation only. Authentication, CORS and access logs are 
 | `errors.go`           | `Error`, problem details                                  |
 | `security.go`         | security schemes for the document                         |
 | `openapi.go`, `docs.go` | OpenAPI 3.1 document types, Swagger UI                  |
+| `convert.go`          | OpenAPI 3.0 and Swagger 2.0 from the 3.1 document         |
 | `lint.go`             | `API.Lint`                                                |
 | `examples/apiary`     | example API, golden `openapi.json`                        |
 | `internal/release`    | release tool used by CI                                   |

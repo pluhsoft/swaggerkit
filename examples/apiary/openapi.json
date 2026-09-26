@@ -84,6 +84,14 @@
         "responses": {
           "200": {
             "description": "OK",
+            "headers": {
+              "X-Total-Count": {
+                "description": "Number of hives in all pages",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -702,6 +710,179 @@
         }
       }
     },
+    "/hives/{hiveId}/photo": {
+      "get": {
+        "tags": [
+          "hives"
+        ],
+        "summary": "Get the photo of a hive",
+        "operationId": "getPhoto",
+        "parameters": [
+          {
+            "name": "hiveId",
+            "in": "path",
+            "description": "Hive ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "examples": [
+                1
+              ],
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "image/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "hives"
+        ],
+        "summary": "Upload a photo of a hive",
+        "operationId": "uploadPhoto",
+        "parameters": [
+          {
+            "name": "hiveId",
+            "in": "path",
+            "description": "Hive ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "examples": [
+                1
+              ],
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "caption": {
+                    "type": "string",
+                    "description": "Caption",
+                    "maxLength": 100
+                  },
+                  "photo": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "JPEG or PNG image, up to 2 MiB"
+                  }
+                },
+                "required": [
+                  "photo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoInfo"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "beekeeper": []
+          }
+        ]
+      }
+    },
     "/stats": {
       "get": {
         "tags": [
@@ -738,6 +919,7 @@
     "schemas": {
       "Harvest": {
         "type": "object",
+        "description": "Honey taken from a hive.",
         "properties": {
           "beekeeper": {
             "type": "string",
@@ -786,6 +968,7 @@
       },
       "Hive": {
         "type": "object",
+        "description": "A beehive in the apiary.",
         "properties": {
           "bees": {
             "type": "integer",
@@ -867,10 +1050,12 @@
           "swarming",
           "dormant",
           "empty"
-        ]
+        ],
+        "description": "State of a bee colony."
       },
       "HiveUpdate": {
         "type": "object",
+        "description": "Changes to a hive. Missing fields stay unchanged.",
         "properties": {
           "name": {
             "type": "string",
@@ -890,6 +1075,7 @@
       },
       "Location": {
         "type": "object",
+        "description": "A point on the map.",
         "properties": {
           "lat": {
             "type": "number",
@@ -919,6 +1105,7 @@
       },
       "NewHive": {
         "type": "object",
+        "description": "Request to set up a hive.",
         "properties": {
           "location": {
             "$ref": "#/components/schemas/Location",
@@ -957,6 +1144,7 @@
       },
       "PageHive": {
         "type": "object",
+        "description": "A page of a list.",
         "properties": {
           "items": {
             "type": "array",
@@ -995,6 +1183,55 @@
           "total",
           "limit",
           "offset"
+        ]
+      },
+      "PhotoInfo": {
+        "type": "object",
+        "description": "A photo of a hive.",
+        "properties": {
+          "caption": {
+            "type": "string",
+            "description": "Caption",
+            "examples": [
+              "Spring inspection"
+            ]
+          },
+          "contentType": {
+            "type": "string",
+            "description": "image/jpeg or image/png",
+            "examples": [
+              "image/jpeg"
+            ]
+          },
+          "hiveId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Hive ID",
+            "examples": [
+              1
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "Original file name",
+            "examples": [
+              "linden.jpg"
+            ]
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Size in bytes",
+            "examples": [
+              48213
+            ]
+          }
+        },
+        "required": [
+          "hiveId",
+          "name",
+          "contentType",
+          "size"
         ]
       },
       "Problem": {
@@ -1060,6 +1297,7 @@
       },
       "Queen": {
         "type": "object",
+        "description": "Queen bee of a colony.",
         "properties": {
           "bornOn": {
             "type": "string",
@@ -1089,6 +1327,7 @@
       },
       "Stats": {
         "type": "object",
+        "description": "Totals for the whole apiary.",
         "properties": {
           "bees": {
             "type": "integer",

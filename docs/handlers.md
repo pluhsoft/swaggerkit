@@ -22,6 +22,8 @@ Mistakes in routes and types panic at registration with the route and field in t
 | `header:"X-Request-Id"`        | header                         |
 | `cookie:"session"`             | cookie                         |
 | field named `Body`             | JSON body; `*T` makes it optional |
+| `form:"caption"`               | form field (`multipart/form-data` or urlencoded) |
+| `form:"photo"` on `*multipart.FileHeader` | uploaded file; `[]*multipart.FileHeader` for several |
 | embedded struct without tag    | its fields, e.g. shared pagination |
 
 If the input has none of these, the whole input is the JSON body:
@@ -50,6 +52,37 @@ type UpdateHiveInput struct {
 ```
 
 Use `struct{}` for handlers without input.
+
+A route with several success statuses documents them and picks one per request:
+
+```go
+swaggerkit.Put(api, "/hives/{hiveId}", PutHive, swaggerkit.Statuses(http.StatusCreated))
+
+func PutHive(ctx context.Context, in PutHiveInput) (Hive, error) {
+	hive, created := store.Put(in)
+	if created {
+		swaggerkit.SetStatus(ctx, http.StatusCreated) // must be listed in Statuses, otherwise 500
+	}
+	return hive, nil
+}
+```
+
+### Uploads
+
+```go
+type UploadPhotoInput struct {
+	HivePath
+	Photo   *multipart.FileHeader `form:"photo" validate:"required" doc:"JPEG or PNG"`
+	Caption string                `form:"caption" validate:"optional,max=100"`
+}
+
+swaggerkit.Put(api, "/hives/{hiveId}/photo", UploadPhoto, swaggerkit.MaxBodyBytes(2<<20))
+```
+
+- A route uses either `Body` or `form` fields.
+- Form fields follow the parameter rules; files support `required` and `max` (number of files).
+- `MaxBodyBytes` raises the 1 MiB limit for the route. Up to 32 MiB are kept in memory, the rest goes to temporary files that are removed after the handler.
+- Check the file content, not the client's Content-Type: `http.DetectContentType`.
 
 ## Output
 
@@ -83,6 +116,8 @@ return Hive{}, &swaggerkit.Error{Status: 503, Detail: "try later", Err: err} // 
 
 Any other error is logged and answered with 500 without details. Panics are recovered the same way.
 
+Middlewares send the same format with `swaggerkit.WriteError(w, err)`.
+
 | Status | When                                    |
 | ------ | --------------------------------------- |
 | 400    | malformed JSON                          |
@@ -99,8 +134,8 @@ Document the errors a handler returns: `swaggerkit.Errors(http.StatusNotFound, h
 | `Summary`, `Description`        | text in the documentation; summary defaults to the handler name: `ListHives` → "List hives" |
 | `OperationID`                   | defaults to `listHives`; must be unique  |
 | `Tags`                          | groups operations                        |
-| `Status`                        | success status                           |
-| `Errors`, `Produces`            | documented responses                     |
+| `Status`, `Statuses`            | success status; more statuses for `SetStatus` |
+| `Errors`, `Produces`, `Header`  | documented responses and headers         |
 | `Security`, `Public`            | documented [authentication](security)    |
 | `Middlewares`                   | [middlewares](middleware) for the route  |
 | `Deprecated`, `Hidden`          | mark or hide in the documentation        |
@@ -116,5 +151,7 @@ swaggerkit.Delete(keeper, "/{hiveId}", DeleteHive)
 
 ```go
 r := swaggerkit.Request(ctx)                        // *http.Request
-swaggerkit.ResponseHeader(ctx).Set("X-Total", "42") // response headers
+swaggerkit.ResponseHeader(ctx).Set("X-Total-Count", "42") // response headers
 ```
+
+Document response headers on the route: `swaggerkit.Header("X-Total-Count", "Number of items in all pages")`.

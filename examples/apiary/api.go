@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/subtle"
-	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -13,7 +12,8 @@ import (
 
 // Apiary holds the handlers.
 type Apiary struct {
-	store *Store
+	store  *Store
+	photos photos
 }
 
 type beekeeperKey struct{}
@@ -32,9 +32,7 @@ func requireBeekeeper(token string) swaggerkit.Middleware {
 			got, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 			if !ok || subtle.ConstantTimeCompare([]byte(got), []byte(token)) != 1 {
 				w.Header().Set("WWW-Authenticate", "Bearer")
-				w.Header().Set("Content-Type", "application/problem+json")
-				w.WriteHeader(http.StatusUnauthorized)
-				_, _ = io.WriteString(w, `{"type":"about:blank","title":"Unauthorized","status":401,"detail":"unknown token"}`)
+				swaggerkit.WriteError(w, swaggerkit.Unauthorized("unknown token"))
 				return
 			}
 			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), beekeeperKey{}, "beekeeper")))
@@ -61,13 +59,17 @@ func NewAPI(store *Store, token string, logger *slog.Logger) *swaggerkit.API {
 		swaggerkit.WithTag("honey", "Honey harvests"),
 		swaggerkit.WithTag("apiary", "The apiary as a whole"),
 	)
-	a := &Apiary{store: store}
+	a := &Apiary{store: store, photos: photos{byHive: map[int64]photo{}}}
 	hives := api.Group("/hives", swaggerkit.Tags("hives"))
-	swaggerkit.Get(hives, "", a.ListHives)
+	swaggerkit.Get(hives, "", a.ListHives, swaggerkit.Header("X-Total-Count", "Number of hives in all pages"))
 	swaggerkit.Get(hives, "/{hiveId}", a.GetHive, swaggerkit.Errors(http.StatusNotFound))
 	swaggerkit.Get(hives, "/{hiveId}/label", a.HiveLabel,
 		swaggerkit.Summary("Print a hive label"),
 		swaggerkit.Produces("text/plain"),
+		swaggerkit.Errors(http.StatusNotFound))
+	swaggerkit.Get(hives, "/{hiveId}/photo", a.GetPhoto,
+		swaggerkit.Summary("Get the photo of a hive"),
+		swaggerkit.Produces("image/*"),
 		swaggerkit.Errors(http.StatusNotFound))
 
 	// Changes need the beekeeper token.
@@ -75,6 +77,10 @@ func NewAPI(store *Store, token string, logger *slog.Logger) *swaggerkit.API {
 	swaggerkit.Post(keeper, "", a.CreateHive, swaggerkit.Status(http.StatusCreated))
 	swaggerkit.Patch(keeper, "/{hiveId}", a.UpdateHive, swaggerkit.Errors(http.StatusNotFound))
 	swaggerkit.Delete(keeper, "/{hiveId}", a.DeleteHive, swaggerkit.Errors(http.StatusNotFound))
+	swaggerkit.Put(keeper, "/{hiveId}/photo", a.UploadPhoto,
+		swaggerkit.Summary("Upload a photo of a hive"),
+		swaggerkit.MaxBodyBytes(2<<20),
+		swaggerkit.Errors(http.StatusNotFound))
 	swaggerkit.Post(keeper, "/{hiveId}/bees", a.AddBees,
 		swaggerkit.Summary("Move bees into a hive"),
 		swaggerkit.Status(http.StatusOK),

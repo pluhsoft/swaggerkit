@@ -36,7 +36,7 @@ func requireJWT(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, err := parseJWT(r.Header.Get("Authorization"))
 		if err != nil {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			swaggerkit.WriteError(w, swaggerkit.Unauthorized("invalid token")) // same format as handler errors
 			return
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userKey{}, user)))

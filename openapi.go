@@ -58,8 +58,14 @@ type requestBody struct {
 }
 
 type response struct {
-	Description string               `json:"description"`
-	Content     map[string]mediaType `json:"content,omitempty"`
+	Description string                  `json:"description"`
+	Headers     map[string]headerObject `json:"headers,omitempty"`
+	Content     map[string]mediaType    `json:"content,omitempty"`
+}
+
+type headerObject struct {
+	Description string  `json:"description,omitempty"`
+	Schema      *Schema `json:"schema"`
 }
 
 type mediaType struct {
@@ -196,6 +202,15 @@ func (a *API) operation(rt *route, problem string) *operation {
 		}
 	}
 
+	if form := rt.input.form; len(form) > 0 {
+		schema := formSchema(form)
+		body := &requestBody{Required: len(schema.Required) > 0, Content: map[string]mediaType{"multipart/form-data": {schema}}}
+		if !formHasFiles(form) {
+			body.Content["application/x-www-form-urlencoded"] = mediaType{schema}
+		}
+		op.RequestBody = body
+	}
+
 	status := successStatus(rt)
 	success := response{Description: http.StatusText(status)}
 	switch rt.output {
@@ -208,7 +223,18 @@ func (a *API) operation(rt *route, problem string) *operation {
 		}
 		success.Content = map[string]mediaType{ct: {&Schema{Type: "string", Format: "binary"}}}
 	}
+	for _, h := range rt.cfg.headers {
+		if success.Headers == nil {
+			success.Headers = map[string]headerObject{}
+		}
+		success.Headers[h.name] = headerObject{Description: h.description, Schema: &Schema{Type: "string"}}
+	}
 	op.Responses[strconv.Itoa(status)] = success
+	for _, code := range rt.cfg.statuses {
+		extra := success
+		extra.Description = http.StatusText(code)
+		op.Responses[strconv.Itoa(code)] = extra
+	}
 
 	codes := slices.Clone(rt.cfg.errors)
 	if len(rt.cfg.security) > 0 {

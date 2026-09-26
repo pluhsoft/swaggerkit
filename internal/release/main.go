@@ -280,6 +280,9 @@ func checkRelease(head string) error {
 	if found {
 		baseArg = "-base=v" + latest.String()
 	}
+	if os.Getenv("RELEASE_SKIP_GORELEASE") != "" {
+		return nil // tests: gorelease needs the network
+	}
 	cmd := exec.Command("go", "run", gorelease, baseArg, "-version=v"+next.String())
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	if err := cmd.Run(); err != nil {

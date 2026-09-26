@@ -22,18 +22,25 @@ type HandlerFunc[In, Out any] func(ctx context.Context, in In) (Out, error)
 type RouteOption func(*routeConfig)
 
 type routeConfig struct {
-	summary     string
-	description string
-	operationID string
-	tags        []string
-	deprecated  bool
-	hidden      bool
-	status      int
-	security    []string
-	public      bool
-	middlewares []Middleware
-	errors      []int
-	produces    string
+	summary      string
+	description  string
+	operationID  string
+	tags         []string
+	deprecated   bool
+	hidden       bool
+	status       int
+	statuses     []int // more success statuses, chosen with SetStatus
+	security     []string
+	public       bool
+	middlewares  []Middleware
+	errors       []int
+	produces     string
+	headers      []headerDoc
+	maxBodyBytes int64
+}
+
+type headerDoc struct {
+	name, description string
 }
 
 // Summary sets the short summary of the operation.
@@ -61,6 +68,12 @@ func Hidden() RouteOption { return func(c *routeConfig) { c.hidden = true } }
 // Status sets the success status code. The default is 200, or 204 for [NoContent].
 func Status(code int) RouteOption { return func(c *routeConfig) { c.status = code } }
 
+// Statuses documents more success statuses of the route, e.g. 201 for a PUT
+// that creates or replaces. The handler picks one with [SetStatus].
+func Statuses(codes ...int) RouteOption {
+	return func(c *routeConfig) { c.statuses = append(c.statuses, codes...) }
+}
+
 // Security documents that the route requires one of the named security
 // schemes, registered with [WithSecurityScheme]. Several names mean any of
 // them is accepted. Check credentials in a middleware passed with [Middlewares].
@@ -86,10 +99,22 @@ func Errors(codes ...int) RouteOption {
 	return func(c *routeConfig) { c.errors = append(c.errors, codes...) }
 }
 
+// MaxBodyBytes overrides [WithMaxBodyBytes] for the route, e.g. for uploads.
+func MaxBodyBytes(n int64) RouteOption { return func(c *routeConfig) { c.maxBodyBytes = n } }
+
 // Produces sets the content type of a [File] response in the documentation,
 // e.g. "image/png". The default is "application/octet-stream".
 func Produces(contentType string) RouteOption {
 	return func(c *routeConfig) { c.produces = contentType }
+}
+
+// Header documents a header of the success response, e.g.
+// Header("X-Total-Count", "Number of items in all pages"). Set it in the
+// handler with ResponseHeader(ctx).Set.
+func Header(name, description string) RouteOption {
+	return func(c *routeConfig) {
+		c.headers = append(c.headers, headerDoc{http.CanonicalHeaderKey(name), description})
+	}
 }
 
 // route is a registered operation.
@@ -169,8 +194,10 @@ func Handle[In, Out any](r Router, method, path string, h HandlerFunc[In, Out], 
 			panic(fmt.Sprintf("swaggerkit: %s: unknown security scheme %q; register it with WithSecurityScheme", where, s))
 		}
 	}
-	if cfg.status != 0 && (cfg.status < 100 || cfg.status > 399) {
-		panic(fmt.Sprintf("swaggerkit: %s: success status %d must be 1xx-3xx", where, cfg.status))
+	for _, code := range append([]int{cfg.status}, cfg.statuses...) {
+		if code != 0 && (code < 100 || code > 399) {
+			panic(fmt.Sprintf("swaggerkit: %s: success status %d must be 1xx-3xx", where, code))
+		}
 	}
 
 	a.mu.Lock()
@@ -210,6 +237,7 @@ func Handle[In, Out any](r Router, method, path string, h HandlerFunc[In, Out], 
 	a.mux.Handle(method+" "+muxPath, handler)
 	a.routes = append(a.routes, rt)
 	a.spec = nil
+	clear(a.specs)
 }
 
 // withSchemaErrors converts schema errors into panics that name the route.

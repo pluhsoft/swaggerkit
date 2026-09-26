@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,6 +13,9 @@ import (
 
 // HiveStatus is the state of a bee colony.
 type HiveStatus string
+
+// Doc describes the type in the OpenAPI document.
+func (HiveStatus) Doc() string { return "State of a bee colony." }
 
 const (
 	StatusActive   HiveStatus = "active"
@@ -38,17 +42,26 @@ type Hive struct {
 	CreatedAt time.Time  `json:"createdAt" doc:"When the hive was set up"`
 }
 
+// Doc describes the type in the OpenAPI document.
+func (Hive) Doc() string { return "A beehive in the apiary." }
+
 // Queen is the queen bee of a colony.
 type Queen struct {
 	Breed  string `json:"breed" doc:"Bee breed" validate:"oneof=carniolan italian buckfast" example:"carniolan"`
 	BornOn string `json:"bornOn" doc:"Date the queen hatched" validate:"date" example:"2026-05-14"`
 }
 
+// Doc describes the type in the OpenAPI document.
+func (Queen) Doc() string { return "Queen bee of a colony." }
+
 // Location is a point on the map.
 type Location struct {
 	Lat float64 `json:"lat" doc:"Latitude" validate:"min=-90,max=90" example:"55.75"`
 	Lon float64 `json:"lon" doc:"Longitude" validate:"min=-180,max=180" example:"37.62"`
 }
+
+// Doc describes the type in the OpenAPI document.
+func (Location) Doc() string { return "A point on the map." }
 
 // Page is a page of a list.
 type Page[T any] struct {
@@ -57,6 +70,9 @@ type Page[T any] struct {
 	Limit  int `json:"limit" doc:"Page size" example:"20"`
 	Offset int `json:"offset" doc:"Items skipped" example:"0"`
 }
+
+// Doc describes the type in the OpenAPI document.
+func (Page[T]) Doc() string { return "A page of a list." }
 
 // Pagination is embedded into list inputs.
 type Pagination struct {
@@ -74,6 +90,7 @@ type ListHivesInput struct {
 // ListHives returns hives, newest last.
 func (a *Apiary) ListHives(ctx context.Context, in ListHivesInput) (Page[Hive], error) {
 	items, total := a.store.List(in.Status, in.Tag, in.Limit, in.Offset)
+	swaggerkit.ResponseHeader(ctx).Set("X-Total-Count", strconv.Itoa(total))
 	return Page[Hive]{Items: items, Total: total, Limit: in.Limit, Offset: in.Offset}, nil
 }
 
@@ -84,6 +101,9 @@ type NewHive struct {
 	Location Location   `json:"location" doc:"Where the hive stands"`
 	Tags     []string   `json:"tags,omitempty" doc:"Free-form labels" validate:"max=10,unique,dive,min=1,max=32"`
 }
+
+// Doc describes the type in the OpenAPI document.
+func (NewHive) Doc() string { return "Request to set up a hive." }
 
 // CreateHive sets up a new hive.
 func (a *Apiary) CreateHive(ctx context.Context, in NewHive) (Hive, error) {
@@ -110,6 +130,9 @@ type HiveUpdate struct {
 	Status *HiveStatus `json:"status,omitempty" doc:"New colony state"`
 	Queen  *Queen      `json:"queen,omitempty" doc:"New queen"`
 }
+
+// Doc describes the type in the OpenAPI document.
+func (HiveUpdate) Doc() string { return "Changes to a hive. Missing fields stay unchanged." }
 
 // UpdateHiveInput is the input of UpdateHive.
 type UpdateHiveInput struct {
@@ -160,6 +183,9 @@ type Harvest struct {
 	Beekeeper   string    `json:"beekeeper" doc:"Who harvested" example:"beekeeper"`
 }
 
+// Doc describes the type in the OpenAPI document.
+func (Harvest) Doc() string { return "Honey taken from a hive." }
+
 // HarvestInput takes honey from a hive.
 type HarvestInput struct {
 	HivePath
@@ -205,6 +231,9 @@ type Stats struct {
 	Bees    int     `json:"bees" doc:"Bees in all hives" example:"97000"`
 	HoneyKg float64 `json:"honeyKg" doc:"Honey in all hives, kg" example:"31.5"`
 }
+
+// Doc describes the type in the OpenAPI document.
+func (Stats) Doc() string { return "Totals for the whole apiary." }
 
 // GetStats counts hives, bees and honey.
 func (a *Apiary) GetStats(ctx context.Context, _ struct{}) (Stats, error) {

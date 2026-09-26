@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -31,6 +32,7 @@ type inputPlan struct {
 	typ    reflect.Type
 	params []*paramPlan
 	body   *bodyPlan
+	form   []*formField
 }
 
 type paramPlan struct {
@@ -49,7 +51,7 @@ type bodyPlan struct {
 	description string // doc tag of the Body field
 }
 
-func (p *inputPlan) empty() bool { return len(p.params) == 0 && p.body == nil }
+func (p *inputPlan) empty() bool { return len(p.params) == 0 && p.body == nil && len(p.form) == 0 }
 
 // analyzeInput reads the input type of a handler.
 func analyzeInput(g *schemaGen, t reflect.Type, method string, pathParams []string, where string) *inputPlan {
@@ -66,6 +68,14 @@ func analyzeInput(g *schemaGen, t reflect.Type, method string, pathParams []stri
 		plan.body = &bodyPlan{typ: t, required: true}
 	}
 
+	if len(plan.form) > 0 {
+		if plan.body != nil {
+			fail(t.Name(), "use either a Body field or form fields")
+		}
+		if method == http.MethodGet || method == http.MethodHead {
+			fail("input", "%s requests cannot have a form body", method)
+		}
+	}
 	if b := plan.body; b != nil {
 		if method == http.MethodGet || method == http.MethodHead {
 			fail("input", "%s requests cannot have a body; tag the fields of %s as query parameters", method, t)
@@ -98,7 +108,13 @@ func collectInput(g *schemaGen, t reflect.Type, index []int, plan *inputPlan, un
 		sf := t.Field(i)
 		idx := append(slices.Clone(index), i)
 		loc, name := paramTag(sf.Tag)
+		formName, isForm := sf.Tag.Lookup(inForm)
 		switch {
+		case isForm:
+			if !sf.IsExported() {
+				fail(t.Name()+"."+sf.Name, "form fields must be exported")
+			}
+			plan.form = append(plan.form, newFormField(g, sf, idx, formName, t.Name()+"."+sf.Name))
 		case loc != "":
 			if !sf.IsExported() {
 				fail(t.Name()+"."+sf.Name, "parameter fields must be exported")
@@ -165,7 +181,7 @@ func isTextType(t reflect.Type) bool {
 }
 
 // bind decodes and validates the request into a new In value.
-func (p *inputPlan) bind(a *API, w http.ResponseWriter, r *http.Request) (reflect.Value, *Error) {
+func (p *inputPlan) bind(a *API, w http.ResponseWriter, r *http.Request, limit int64) (reflect.Value, *Error) {
 	in := reflect.New(p.typ).Elem()
 	var errs []FieldError
 	var query map[string][]string
@@ -193,12 +209,19 @@ func (p *inputPlan) bind(a *API, w http.ResponseWriter, r *http.Request) (reflec
 		if p.body.index != nil {
 			target = in.FieldByIndex(p.body.index)
 		}
-		if e := p.body.decode(a, w, r, target); e != nil {
+		if e := p.body.decode(a, w, r, target, limit); e != nil {
 			if e.Status != http.StatusUnprocessableEntity {
 				return in, e
 			}
 			errs = append(errs, e.Errors...)
 		}
+	}
+	if len(p.form) > 0 {
+		formErrs, e := p.bindForm(a, w, r, in, limit)
+		if e != nil {
+			return in, e
+		}
+		errs = append(errs, formErrs...)
 	}
 	if len(errs) > 0 {
 		return in, validationError(http.StatusUnprocessableEntity, "request validation failed", errs)
@@ -256,6 +279,10 @@ func (pp *paramPlan) set(a *API, field reflect.Value, raw []string) []FieldError
 	if len(errs) > 0 {
 		return errs
 	}
+	if setScalar(field, value) {
+		return nil
+	}
+	// time.Time, TextUnmarshaler types: let encoding/json apply its rules.
 	data, err := marshalJSON(value)
 	if err == nil {
 		err = json.Unmarshal(data, field.Addr().Interface())
@@ -264,6 +291,75 @@ func (pp *paramPlan) set(a *API, field reflect.Value, raw []string) []FieldError
 		return []FieldError{{loc, "has an invalid value"}}
 	}
 	return nil
+}
+
+// setScalar stores a validated value in a field of a plain kind (string,
+// number, bool, pointers and slices of them) without a JSON round trip.
+// It reports false for types that need encoding/json.
+func setScalar(field reflect.Value, value any) bool {
+	t := field.Type()
+	switch {
+	case t.Kind() == reflect.Pointer:
+		elem := reflect.New(t.Elem()).Elem()
+		if !setScalar(elem, value) {
+			return false
+		}
+		field.Set(elem.Addr())
+		return true
+	case t.Kind() == reflect.Slice && !isTextType(t):
+		list, ok := value.([]any)
+		if !ok {
+			return false
+		}
+		out := reflect.MakeSlice(t, len(list), len(list))
+		for i, v := range list {
+			if !setScalar(out.Index(i), v) {
+				return false
+			}
+		}
+		field.Set(out)
+		return true
+	case reflect.PointerTo(t).Implements(textUnmarshalerType) || t == timeType:
+		return false
+	}
+	switch v := value.(type) {
+	case string:
+		if t.Kind() != reflect.String {
+			return false
+		}
+		field.SetString(v)
+	case bool:
+		if t.Kind() != reflect.Bool {
+			return false
+		}
+		field.SetBool(v)
+	case json.Number:
+		switch t.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			n, err := strconv.ParseInt(v.String(), 10, t.Bits())
+			if err != nil {
+				return false
+			}
+			field.SetInt(n)
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+			n, err := strconv.ParseUint(v.String(), 10, t.Bits())
+			if err != nil {
+				return false
+			}
+			field.SetUint(n)
+		case reflect.Float32, reflect.Float64:
+			f, err := strconv.ParseFloat(v.String(), t.Bits())
+			if err != nil {
+				return false
+			}
+			field.SetFloat(f)
+		default:
+			return false
+		}
+	default:
+		return false
+	}
+	return true
 }
 
 // paramValue converts a raw string to a JSON value of the schema type.
@@ -299,12 +395,12 @@ func typeWord(s *Schema) string {
 }
 
 // decode reads, validates and decodes the JSON body into target.
-func (b *bodyPlan) decode(a *API, w http.ResponseWriter, r *http.Request, target reflect.Value) *Error {
-	data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, a.maxBodyBytes))
+func (b *bodyPlan) decode(a *API, w http.ResponseWriter, r *http.Request, target reflect.Value, limit int64) *Error {
+	data, err := readBody(w, r, limit)
 	if err != nil {
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {
-			return NewError(http.StatusRequestEntityTooLarge, fmt.Sprintf("request body must not exceed %d bytes", a.maxBodyBytes))
+			return NewError(http.StatusRequestEntityTooLarge, fmt.Sprintf("request body must not exceed %d bytes", limit))
 		}
 		return BadRequest("could not read the request body")
 	}
@@ -368,4 +464,15 @@ func jsonErrorText(err error) string {
 		return "unexpected end of input"
 	}
 	return "malformed input"
+}
+
+// readBody reads the body up to limit bytes, sizing the buffer from
+// Content-Length when the client sent it.
+func readBody(w http.ResponseWriter, r *http.Request, limit int64) ([]byte, error) {
+	var buf bytes.Buffer
+	if n := r.ContentLength; n > 0 && n <= limit {
+		buf.Grow(int(n) + 1) // +1 lets ReadFrom see EOF without growing
+	}
+	_, err := buf.ReadFrom(http.MaxBytesReader(w, r.Body, limit))
+	return buf.Bytes(), err
 }
